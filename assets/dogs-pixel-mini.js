@@ -682,11 +682,11 @@ export function startDogs(canvas) {
     if (a.type === 'pat') { m.social = clamp(m.social + .15, .05, .95); m.energy = clamp(m.energy + .1, .05, .95); }
     if (a.type === 'eat' && dog.bowl && !dog.path.length) {
       // Full. Sometimes check what the neighbor left behind, otherwise wander off content.
-      m.hunger = 0; dog.appetite = rand(.75, .95);
+      m.hunger = 0; dog.appetite = rand(.75, .95); dog.mealDue = false;
       if (Math.random() < .25 && bowls.some(b => !b.dog)) return setAct(dog, 'sniffbowl');
       return setAct(dog, 'wander');
     }
-    if (bowls.length && m.hunger > dog.appetite && !['come', 'mill', 'chase', 'bowback', 'play'].includes(a.type)) return startMeal(dog);
+    if (bowls.length && dog.mealDue && !night && !['come', 'mill', 'chase', 'bowback', 'play'].includes(a.type)) return startMeal(dog);
     // After a tap the dogs keep poking around the spot for a few beats before going back to normal.
     if ((a.type === 'come' || a.type === 'mill') && (a.left ?? 0) > 0) {
       return setAct(dog, 'mill', false, { center: a.center, left: a.left - 1 });
@@ -1101,6 +1101,8 @@ export function startDogs(canvas) {
     // Slots a dog-width apart sideways and staggered in depth, so they gather without piling up.
     const slots = [[-1, -1], [0, 1], [1, 0]].sort(() => Math.random() - .5);
     order.forEach((dog, i) => {
+      // A dog waiting in line for a treat, or busy with one, stays put.
+      if (['beg', 'chew', 'treatgrab'].includes(dog.act.type)) return;
       // A dog with its head in the bowl may not even look up.
       if (dog.act.type === 'eat' && dog.bowl && !dog.path.length && Math.random() < .2 + .6 * dog.mood.hunger) return;
       const [sx, sy] = slots[i];
@@ -1818,24 +1820,40 @@ export function startDogs(canvas) {
     canvas.flyDebug = () => flies && flies.map(f => ({ x: f.x, y: f.y, z: f.z, lift: f.lift, visitor: !!f.visitor, land: f.land && { dog: dogs.indexOf(f.land.dog), perched: f.land.perched } }));
   }
 
-  // ==== Feature: mealtime on demand ===========================================================
-  // ?event=meal starts a meal a couple of seconds after the page opens, so it can be previewed.
-  if (eventParam === 'meal') {
-    let wait = 2;
-    extras.push({ update(dt) { if (wait > 0 && (wait -= dt) <= 0 && !night && bowls.length) { const d = dogs.find(idleDog) || dogs[0]; d.mood.hunger = 1; startMeal(d); } } });
+  // ==== Feature: mealtime =====================================================================
+  // The dogs eat at noon and 6pm Palo Alto time: a page open in the first half hour of either sees
+  // the meal. ?event=meal starts one a couple of seconds after the page opens, so it can be previewed.
+  {
+    const served = new Set();
+    let wait = eventParam === 'meal' ? 2 : 0, check = 0;
+    const serve = () => {
+      for (const d of dogs) { d.mealDue = true; d.mood.hunger = 1; }
+      const d = dogs.find(idleDog);
+      if (d) startMeal(d);
+    };
+    extras.push({ update(dt) {
+      if (wait > 0 && (wait -= dt) <= 0) serve();
+      if ((check -= dt) > 0) return;
+      check = 5;
+      const [h, m] = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+        .format(new Date()).split(':').map(Number);
+      if ((h === 12 || h === 18) && m < 30 && !served.has(h)) { served.add(h); serve(); }
+    } });
   }
 
   // ==== Feature: treats =======================================================================
   // By day a small blue bowl of bone treats sits in open ground. Press on it and drag a treat out:
-  // the dogs come running and sit in a row under it, watching. Let go above a dog and it catches the
-  // treat and chews; let go anywhere else and the treat drops, and the nearest dog trots over for it.
+  // the dogs come running and sit in a row under it, and each waits there until it gets one. Let go
+  // above a dog and it catches the treat; let go anywhere else and the treat drops, and the nearest
+  // dog trots over for it. Then it lies down to munch, spilling crumbs. Oshie, the white chin, runs
+  // off somewhere away from the others first.
   {
     // Facing either way; the bottom row stands on the ground. T bone, t its shading, B rim, b bowl.
     const JAR = ['.T..T..', 'TtTTtT.', 'BBBBBBB', '.bbbbb.', '..bbb..'];
     const BONE = ['T...T', 'TTTTT', 'T...T'];
     // A toasty biscuit color, dark enough to stand out against the cream dog and the page.
     const COLORS = { T: '#c8924f', t: '#a87638', B: '#6a9ccc', b: '#4a7cab' };
-    let jar = null, held = null, falling = [], line = null, lastLayout = '';
+    let jar = null, held = null, falling = [], crumbs = [], line = null, lastLayout = '';
     const MOUTH_UP = 7; // A begging dog's mouth is about seven sprite pixels above its feet.
     const mouthOf = d => ({ x: d.x + d.face * 6.5 * P, y: d.y - MOUTH_UP * P });
     function placeJar() {
@@ -1854,14 +1872,13 @@ export function startDogs(canvas) {
     const onJar = (x, y) => jar && !night && !reduced.matches && x > jar.x - 5 * P && x < jar.x + 5 * P && y > jar.y - 8 * P && y < jar.y + 2 * P;
     // The begging row: one sitting spot per dog, side by side a little below the treat.
     function formLine(at) {
-      const diners = dogs.filter(d => ['beg', 'chew'].includes(d.act.type) || idleDog(d) || d.act.type === 'eat' || d.act.type === 'sniffbowl')
+      const diners = dogs.filter(d => d.act.type === 'beg' || idleDog(d) || d.act.type === 'eat' || d.act.type === 'sniffbowl')
         .filter(d => !['sleep', 'tobed', 'wake'].includes(d.act.type));
       if (!diners.length) return;
       const gap = 20 * P, y = clamp(at.y + 22 * P, minY() + 10 * P, maxY() - 4);
       const cx = clamp(at.x, minX() + gap, maxX() - gap);
       line = { x: cx, y, t: 0 };
       diners.sort((a, b) => a.x - b.x).forEach((d, i) => {
-        if (d.act.type === 'chew') return;
         const want = nearestValid(cx + (i - (diners.length - 1) / 2) * gap, y);
         setAct(d, 'beg'); d.act.hold = 99; d.act.watch = held || at;
         if (Math.hypot(want.x - d.x, want.y - d.y) > 6 && goTo(d, want, 'trot')) rollPant(d);
@@ -1869,12 +1886,36 @@ export function startDogs(canvas) {
         if (!d.path.length) d.act.still = 'beg';
       });
     }
-    // Everyone still waiting goes back to their day after a little while.
-    const release = (after = rand(2.5, 4)) => { for (const d of dogs) if (d.act.type === 'beg') { d.act.hold = after + rand(0, 1); d.act.watch = null; } };
+    // Treat in mouth, the dog lies down where it is to eat it; Oshie first runs off to a far corner.
     function chew(d) {
-      setAct(d, 'chew'); d.act.still = 'beg'; d.act.hold = rand(1.6, 2.2); d.act.dur = d.act.hold; d.stir = d.act.hold;
+      setAct(d, 'chew'); d.act.hold = 99; d.act.dur = rand(5, 6.5); d.act.left = d.act.dur; d.act.crumb = .4; d.stir = 1;
       for (const o of dogs) if (o !== d && o.act.type === 'beg' && !held) o.act.watch = d; // The others watch the lucky one.
       d.mood.hunger = Math.max(0, d.mood.hunger - .15);
+      const settle = dd => { dd.act.still = 'lie'; dd.act.munch = true; };
+      if (d.coat === 'blackB') {
+        const spot = farSpot(d);
+        if (spot && goTo(d, spot, 'trot')) { rollPant(d); d.act.onArrive = settle; return; }
+      }
+      settle(d);
+    }
+    // Open ground well away from the other dogs, not too long a run.
+    function farSpot(d) {
+      let best = null;
+      for (let i = 0; i < 80; i++) {
+        const x = rand(minX(), maxX()), y = rand(minY(), maxY());
+        if (!valid(x, y) || inZone(x, y)) continue;
+        const far = Math.min(...dogs.filter(o => o !== d).map(o => Math.hypot(o.x - x, (o.y - y) * 2)));
+        const trip = Math.hypot(x - d.x, y - d.y), score = Math.min(far, 300) - trip * .2;
+        if (trip > Math.min(100, width * .2) && far > Math.min(120, width * .25) && (!best || score > best.score)) best = { x, y, score };
+      }
+      return best;
+    }
+    // The treat sits across the front of the muzzle, on the chin row, whatever the pose.
+    function mouthPix(r) {
+      const head = r.list.filter(p => p[4]);
+      if (!head.length) return null;
+      const front = Math.max(...head.map(p => p[0]));
+      return { x: front, y: Math.max(...head.filter(p => p[0] >= front - 1).map(p => p[1])) };
     }
     function drop() {
       const t = held; held = null;
@@ -1907,8 +1948,6 @@ export function startDogs(canvas) {
     const move = e => {
       if (!held) return;
       held.x = e.clientX; held.y = e.clientY;
-      // Let the row follow if the treat is carried somewhere else.
-      if (line && line.t > .8 && (Math.abs(held.x - line.x) > 140 || Math.abs(held.y + 22 * P - line.y) > 110)) formLine(held);
     };
     const up = () => { if (!held) return; drop(); swallowClickUntil = performance.now() + 350; };
     const noSelect = e => { if (onJar(e.clientX, e.clientY)) e.preventDefault(); }; // No text selection while dragging a treat.
@@ -1929,29 +1968,52 @@ export function startDogs(canvas) {
       update(dt) {
         const layout = `${width}x${height}:${avoid.map(r => Math.round(r.t)).join(',')}:${bowls.length}`;
         if (layout !== lastLayout) { lastLayout = layout; jar = placeJar(); }
-        if (night) { if (held) held = null; falling = []; line = null; return; }
+        if (night) { if (held) held = null; falling = []; crumbs = []; line = null; return; }
         if (line) line.t += dt;
+        // Let the row follow if the treat is carried somewhere else.
+        if (held && line && line.t > .8 && (Math.abs(held.x - line.x) > 140 || Math.abs(held.y + 22 * P - line.y) > 110)) formLine(held);
         // Waiting dogs keep their eyes on the treat and wag hard.
         for (const d of dogs) {
           if (d.act.type === 'beg') { if (held) d.act.watch = held; if (!d.path.length) d.stir = Math.max(d.stir, .3); }
-          if (d.act.type === 'chew' && Math.sin(clock * 14 + d.seed) > .3) d.tongue = .12; // Munching.
+          const a = d.act;
+          if (a.type !== 'chew' || !a.munch || d.path.length) continue;
+          // Munching: bite by bite the treat gets smaller and crumbs spill onto the ground.
+          if ((a.crumb -= dt) <= 0 && d.render && a.left > .3) {
+            a.crumb = rand(.3, .65);
+            const m = mouthPix(d.render);
+            if (m) crumbs.push({
+              x: (d.render.gx + (m.x + 1) * d.face) * PD / dpr, y: (d.render.gy + m.y) * PD / dpr,
+              vx: d.face * rand(8, 50) + rand(-25, 25), vy: rand(-45, -10), to: d.y + rand(.3, 2.5) * P, life: rand(2.5, 4.5), c: Math.random() < .85 ? COLORS.T : COLORS.t,
+            });
+          }
+          if ((a.left -= dt) <= 0 && a.munch) { a.munch = false; a.hold = rand(1, 2.5); } // All gone: a moment's rest, then up.
         }
+        for (let i = crumbs.length - 1; i >= 0; i--) {
+          const c = crumbs[i];
+          if (c.y < c.to) {
+            c.vy += 700 * dt; c.x += c.vx * dt; c.y = Math.min(c.to, c.y + c.vy * dt);
+            // Specks, not a pile: one landing next to another just merges into it.
+            if (c.y >= c.to && crumbs.some(o => o !== c && o.y >= o.to && Math.abs(o.x - c.x) < 2 * P && Math.abs(o.to - c.to) < 2 * P)) crumbs.splice(i, 1);
+          }
+          else if ((c.life -= dt) <= 0) crumbs.splice(i, 1);
+        }
+        if (crumbs.length > 40) crumbs.splice(0, crumbs.length - 40);
         for (let i = falling.length - 1; i >= 0; i--) {
           const f = falling[i];
           if (f.y < f.to) {
             f.vy += 1400 * dt; f.y = Math.min(f.to, f.y + f.vy * dt);
             if (f.y >= f.to) {
-              if (f.catcher && f.catcher.act.type === 'beg') { chew(f.catcher); falling.splice(i, 1); if (!held) release(); continue; }
+              if (f.catcher && f.catcher.act.type === 'beg') { chew(f.catcher); falling.splice(i, 1); continue; }
               grab(f);
             }
             continue;
           }
-          if (f.eatAt !== undefined && (f.eatAt -= dt) <= 0) { if (f.taker?.act.type === 'treatgrab') chew(f.taker); falling.splice(i, 1); if (!held) release(); continue; }
+          if (f.eatAt !== undefined && (f.eatAt -= dt) <= 0) { if (f.taker?.act.type === 'treatgrab') chew(f.taker); falling.splice(i, 1); continue; }
           if (f.taker && f.taker.act.type !== 'treatgrab' && f.eatAt === undefined) { f.taker = null; grab(f); }
           if (f.rest > 0 && (f.rest -= dt) <= 0) falling.splice(i, 1);
         }
-        // Nobody's offering anything: drift off after a while.
-        if (!held && !falling.length && line && line.t > 6) { release(); line = null; }
+        // Dogs in line wait there until they get a treat; the row is gone once everyone has had one.
+        if (line && !held && !dogs.some(d => d.act.type === 'beg')) line = null;
       },
       items(items) {
         if (!jar || night) return;
@@ -1964,16 +2026,26 @@ export function startDogs(canvas) {
           }));
         } });
         for (const f of falling) items.push({ y: f.y >= f.to ? f.to : 1e9, draw: () => bone(f.x, f.y) });
+        for (const c of crumbs) items.push({ y: c.y >= c.to ? c.to : 1e9, draw: () => {
+          if (c.life < .6 && Math.floor(c.life * 8) % 2) return; // Blinks out at the end.
+          ctx.fillStyle = c.c; ctx.fillRect(Math.round(c.x * dpr / PD) * PD, (Math.round(c.y * dpr / PD) - 1) * PD, PD, PD);
+        } });
         // The treat stays in a chewing dog's mouth, getting smaller bite by bite.
         for (const d of dogs) if (d.act.type === 'chew' && d.render) {
-          const left = (d.act.dur - d.act.t) / d.act.dur, r = d.render;
-          if (left <= .15) continue;
+          const left = d.act.left / d.act.dur;
+          if (left <= .1) continue;
           items.push({ y: d.y + .3, draw: () => {
-            const bob = Math.sin(clock * 14 + d.seed) > 0 ? 1 : 0; // Chomp, chomp.
-            const mx = r.gx + 7 * r.face, my = r.gy - MOUTH_UP - 1 + bob, w = left > .6 ? 3 : left > .35 ? 2 : 1;
+            const r = d.render, m = mouthPix(r);
+            if (!m) return;
+            const bob = d.act.munch && Math.sin(clock * 14 + d.seed) > 0 ? 1 : 0; // Chomp, chomp.
+            const w = left > .4 ? 3 : left > .18 ? 2 : 1, my = r.gy + m.y - 1 + bob;
+            const px = (x, y) => ctx.fillRect((r.gx + (m.x - 1 + x) * r.face) * PD, (my + y) * PD, PD, PD);
             ctx.fillStyle = COLORS.T;
-            for (let k = 0; k < w; k++) ctx.fillRect((mx + k * r.face) * PD, my * PD, PD, PD);
-            ctx.fillStyle = COLORS.t; ctx.fillRect((mx + (w - 1) * r.face) * PD, (my - 1) * PD, PD, PD); // A knob end.
+            for (let k = 0; k < w; k++) px(k, 0);
+            // Darker knobs at both ends, so it reads as a bone even against the cream coat.
+            ctx.fillStyle = COLORS.t;
+            if (w > 1) { px(0, -1); px(w - 1, -1); }
+            if (w > 2) { px(0, 1); px(w - 1, 1); }
           } });
         }
       },
@@ -1986,7 +2058,7 @@ export function startDogs(canvas) {
         ctx.fillStyle = COLORS[ch]; ctx.fillRect((gx + cx - 2) * PD, (gy + ry - 2) * PD, PD, PD);
       }));
     }
-    canvas.treatDebug = () => ({ jar, held, falling: falling.map(f => ({ x: f.x, y: f.y, to: f.to, catcher: f.catcher ? dogs.indexOf(f.catcher) : -1 })), line, acts: dogs.map(d => d.act.type) });
+    canvas.treatDebug = () => ({ jar, held, crumbs: crumbs.length, falling: falling.map(f => ({ x: f.x, y: f.y, to: f.to, catcher: f.catcher ? dogs.indexOf(f.catcher) : -1 })), line, acts: dogs.map(d => d.act.type) });
   }
 
   resize();
