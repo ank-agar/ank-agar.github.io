@@ -17,7 +17,7 @@ function syncPreferences() {
   themeButton.setAttribute('aria-pressed', String(dark));
   themeButton.setAttribute('aria-label', `Switch to ${dark ? 'light' : 'dark'} theme`);
   themeButton.querySelector('span').textContent = dark ? 'Light' : 'Dark';
-  document.querySelector('meta[name="theme-color"]').content = dark ? '#1a1917' : '#f5f4f1';
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#1a1917' : '#fbfaf8';
   soundButton.setAttribute('aria-pressed', String(soundEnabled));
   soundButton.querySelector('span').textContent = soundEnabled ? 'Sound on' : 'Sound off';
 }

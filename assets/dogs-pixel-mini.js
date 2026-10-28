@@ -355,7 +355,10 @@ export function startDogs(canvas) {
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    width = innerWidth; height = innerHeight;
+    // Size from the canvas's actual box, the same coordinate space the text is measured in. (On iPhones
+    // 100vh and innerHeight disagree while the toolbars slide, which stretched the dogs over the text.)
+    const box = canvas.getBoundingClientRect();
+    width = box.width || innerWidth; height = box.height || innerHeight;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     // Small and unobtrusive, growing gently: 3px up to about half a laptop screen, 4-5px on a full one.
@@ -429,8 +432,10 @@ export function startDogs(canvas) {
           && b.x - 4 * P > 0 && b.x + 4 * P < width && avoid.every(clear) && (!bedZone || clear(bedZone));
       }) && pts;
     };
-    for (const fy of [.4, .32, .5, .25, .6, .7, .2])
-      for (const fx of [.84, .78, .9, .7, .62, .3, .2]) {
+    // Preferred spots first, then a finer sweep so narrow phone screens still find room for the row.
+    const fxs = [.84, .78, .9, .7, .62, .3, .2, ...Array.from({ length: 17 }, (_, i) => .1 + i * .05)];
+    for (const fy of [.4, .32, .5, .25, .6, .7, .2, .45, .35, .55, .3, .65])
+      for (const fx of fxs) {
         const face = fx > .5 ? -1 : 1, x = width * fx, y = height * fy;
         const pts = fits(x, y, face);
         if (pts) {
@@ -1194,8 +1199,7 @@ export function startDogs(canvas) {
         wearAtNeck(out, pose, frame, [[0, 0, c], [1, 0, c], [2, 0, c], [1, 1, f, true]]);
       },
       items(items, dark) {
-        // It always sits on something: by the beds at night,
-        // and by day at the end of the bowl row, only while the bowls are out.
+        // Halloween week: by the beds at night, and by day at the end of the bowls' row.
         let x, y, alpha = 1;
         if (night && beds.length) {
           const half = 4 * P, l = zone ? zone.l : beds[0].x - 9 * P, r = zone ? zone.r : beds[2].x + 9 * P;
@@ -1204,9 +1208,10 @@ export function startDogs(canvas) {
           const nearHead = headBox && x + 4 * P > headBox.l - 12 && x - 4 * P < headBox.r + 12 && y > headBox.t - 12 && y - 7 * P < headBox.b + 12;
           if (nearHead || pixelInText(x, y - 3 * P)) return;
         } else {
-          if (!bowls.length || bowlVis <= 0) return;
+          // By day it sits all week at the end of the bowls' spot (the bowls themselves come and go with meals).
+          if (!bowls.length) return;
           const left = bowls[0].face < 0;
-          x = left ? bowls[0].x - 8 * P : bowls[bowls.length - 1].x + 8 * P; y = bowls[0].y; alpha = bowlVis;
+          x = left ? bowls[0].x - 8 * P : bowls[bowls.length - 1].x + 8 * P; y = bowls[0].y;
           if (pixelInText(x, y - 3 * P)) return;
         }
         items.push({ y: y - .2, draw: () => {
@@ -1280,7 +1285,8 @@ export function startDogs(canvas) {
       let spot = null;
       for (let i = 0; i < 60 && !spot; i++) {
         const x = rand(.1, .9) * width, y = rand(.3, .9) * height;
-        if (valid(x, y) && !inZone(x, y) && !pixelInText(x, y - 20) && dogs.every(d => Math.hypot(d.x - x, d.y - y) > 170)) spot = { x, y };
+        // Land well clear of the dogs; on a small phone screen "well clear" has to be closer.
+        if (valid(x, y) && !inZone(x, y) && !pixelInText(x, y - 20) && dogs.every(d => Math.hypot(d.x - x, d.y - y) > Math.min(170, width * .22))) spot = { x, y };
       }
       if (!spot) { wait = 20; return; }
       const fromLeft = Math.random() < .5, alt = rand(140, 240);
@@ -1336,7 +1342,7 @@ export function startDogs(canvas) {
           }
           bird.z0 = Math.max(0, bird.z0 - dt); bird.peck = Math.max(0, (bird.peck || 0) - dt);
           bird.z = bird.z0 > 0 ? Math.sin(bird.z0 / .18 * Math.PI) * 2 * P : 0;
-          if ((bird.stay -= dt) <= 0 || dogs.some(d => near(d, 95)) || night) flyOff();
+          if ((bird.stay -= dt) <= 0 || dogs.some(d => near(d, Math.min(95, width * .14))) || night) flyOff(); // A dog this close spooks it (closer on small screens).
         } else {
           bird.x += bird.vx * dt; bird.z += bird.vz * dt;
           if (bird.x < -40 || bird.x > width + 40 || bird.y - bird.z < -40) { bird = null; wait = forced ? rand(25, 45) : rand(120, 240); }
@@ -1824,6 +1830,7 @@ export function startDogs(canvas) {
   const themeWatch = new MutationObserver(() => { if (reduced.matches) still(); });
   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   addEventListener('resize', onResize);
+  visualViewport?.addEventListener('resize', onResize); // iPhone toolbars showing or hiding.
   addEventListener('click', onClick);
   addEventListener('pointermove', onPointer);
   reduced.addEventListener('change', onMotion);
@@ -1840,6 +1847,7 @@ export function startDogs(canvas) {
     stopped = true;
     cancelAnimationFrame(raf);
     removeEventListener('resize', onResize);
+    visualViewport?.removeEventListener('resize', onResize);
     removeEventListener('click', onClick);
     removeEventListener('pointermove', onPointer);
     reduced.removeEventListener('change', onMotion);
