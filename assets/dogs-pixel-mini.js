@@ -117,6 +117,24 @@ const POSES = {
 // Asleep on a bed at night: eyes shut (e, a short closed-eye line), and the back rises a pixel on
 // each slow breath. 'stir' lifts the head a pixel with the eyes open, for a tap or a pat.
 const SLEEP = POSES.lie.frames[1].map((row, i) => i === 2 ? '.......BBeeB.' : row);
+// Begging for a treat: sitting up straight on the haunches, torso upright under a raised head, with
+// both front paws tucked up at the chest.
+POSES.beg = {
+  anchor: 4, tail: [1, 10], tails: ['flat', 'sweep'], head: [5, 4], neck: [5, 5],
+  frames: [[
+    '......BB...',
+    '.....BBBB..',
+    '.....BBBEB.',
+    '.....BDBMMN',
+    '.....BDBBBC',
+    '.....BBBBBp',
+    '....BBBBBDD',
+    '....BBBBB..',
+    '...BBBBBB..',
+    '..BBBBBBB..',
+    '..BBBBBBB..',
+  ]],
+};
 POSES.sleep = {
   anchor: 5, tail: [0, 6], tails: ['tuck', 'tuckB'], head: [7, 4], neck: [6, 5],
   frames: [SLEEP, SLEEP.map((row, i) => i === 3 ? '.BBBB..BDBMMN' : row)],
@@ -304,6 +322,7 @@ export function startDogs(canvas) {
   let dogs = [];
   // Night (dark theme): beds above the bio, and a zone around them exempt from the text margin.
   let night = null, beds = [], zone = null, lineBox = null, headBox = null, hand = null, cursorSet = false, bowls = [];
+  let swallowClickUntil = 0; // A treat drag ends in a click; don't also treat it as a tap.
   // Bowls only show while a meal is on: they pop in when a dog sets off for them and fade a moment after the last one leaves.
   let bowlVis = 0, bowlLinger = 0, bowlsInUse = false;
   let raining = false, drops = [], weather = { rain: false, fog: false, hot: false };
@@ -536,7 +555,7 @@ export function startDogs(canvas) {
     if (dog.act.type === 'eat') bowlVis = Math.max(bowlVis, .25); // The bowls appear as the trip starts.
     if (dog.act.type !== 'eat') return;
     for (const o of dogs) {
-      if (o === dog || o.followEat > 0 || ['eat', 'pat', 'come', 'chase', 'bowback', 'zoomies', 'tug'].includes(o.act.type)) continue;
+      if (o === dog || o.followEat > 0 || ['eat', 'pat', 'come', 'chase', 'bowback', 'zoomies', 'tug', 'beg', 'chew', 'treatgrab'].includes(o.act.type)) continue;
       if (Math.random() < .3 + .45 * o.mood.hunger + .2 * o.mood.social) o.followEat = rand(.8, 4.5);
     }
   }
@@ -721,7 +740,7 @@ export function startDogs(canvas) {
 
   function step(dog, dt) {
     driftMood(dog, dt);
-    if (dog.followEat > 0 && (dog.followEat -= dt) <= 0 && !night && !['eat', 'pat', 'come', 'chase', 'bowback', 'sleep', 'tobed', 'fetch', 'bird', 'zoomies', 'tug', 'flutter'].includes(dog.act.type)) {
+    if (dog.followEat > 0 && (dog.followEat -= dt) <= 0 && !night && !['eat', 'pat', 'come', 'chase', 'bowback', 'sleep', 'tobed', 'fetch', 'bird', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab'].includes(dog.act.type)) {
       setAct(dog, 'eat');
       if (dog.act.type === 'eat') bowlVis = Math.max(bowlVis, .25);
       if (dog.act.type === 'eat') dog.mood.hunger = Math.max(dog.mood.hunger, .5);
@@ -1046,12 +1065,13 @@ export function startDogs(canvas) {
   const ignored = target => target.closest?.('a, button, input, [data-dog-avoid]');
   const onControl = target => target.closest?.('a, button, input');
   const onPointer = event => {
-    const over = !reduced.matches && !onControl(event.target) && headAt(event.clientX, event.clientY);
-    if (over) { document.body.style.cursor = 'pointer'; cursorSet = true; }
+    const ok = !reduced.matches && !onControl(event.target);
+    const style = ok && (headAt(event.clientX, event.clientY) ? 'pointer' : extras.map(x => x.cursor?.(event.clientX, event.clientY)).find(Boolean));
+    if (style) { document.body.style.cursor = style; cursorSet = true; }
     else if (cursorSet) { document.body.style.cursor = ''; cursorSet = false; }
   };
   const onClick = event => {
-    if (reduced.matches || onControl(event.target)) return;
+    if (reduced.matches || onControl(event.target) || performance.now() < swallowClickUntil) return;
     // A sleeping dog's bed sits inside the bio's box, so a head hit counts there too.
     const patted = headAt(event.clientX, event.clientY);
     if (patted) return startPat(patted);
@@ -1446,7 +1466,7 @@ export function startDogs(canvas) {
 
   // ==== Shared helper for the play features below ===========================================
   // A dog that is free to be drawn into a game: awake, not eating, not already busy with something.
-  const idleDog = d => !['sleep', 'tobed', 'wake', 'pat', 'eat', 'sniffbowl', 'fetch', 'bird', 'come', 'mill', 'zoomies', 'tug', 'flutter'].includes(d.act.type) && !(d.act.delay > 0) && !d.pat;
+  const idleDog = d => !['sleep', 'tobed', 'wake', 'pat', 'eat', 'sniffbowl', 'fetch', 'bird', 'come', 'mill', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab'].includes(d.act.type) && !(d.act.delay > 0) && !d.pat;
   const eventParam = new URLSearchParams(location.search).get('event');
 
   // ==== Feature: zoomies ======================================================================
@@ -1796,6 +1816,177 @@ export function startDogs(canvas) {
       },
     });
     canvas.flyDebug = () => flies && flies.map(f => ({ x: f.x, y: f.y, z: f.z, lift: f.lift, visitor: !!f.visitor, land: f.land && { dog: dogs.indexOf(f.land.dog), perched: f.land.perched } }));
+  }
+
+  // ==== Feature: mealtime on demand ===========================================================
+  // ?event=meal starts a meal a couple of seconds after the page opens, so it can be previewed.
+  if (eventParam === 'meal') {
+    let wait = 2;
+    extras.push({ update(dt) { if (wait > 0 && (wait -= dt) <= 0 && !night && bowls.length) { const d = dogs.find(idleDog) || dogs[0]; d.mood.hunger = 1; startMeal(d); } } });
+  }
+
+  // ==== Feature: treats =======================================================================
+  // By day a small blue bowl of bone treats sits in open ground. Press on it and drag a treat out:
+  // the dogs come running and sit in a row under it, watching. Let go above a dog and it catches the
+  // treat and chews; let go anywhere else and the treat drops, and the nearest dog trots over for it.
+  {
+    // Facing either way; the bottom row stands on the ground. T bone, t its shading, B rim, b bowl.
+    const JAR = ['.T..T..', 'TtTTtT.', 'BBBBBBB', '.bbbbb.', '..bbb..'];
+    const BONE = ['T...T', 'TTTTT', 'T...T'];
+    // A toasty biscuit color, dark enough to stand out against the cream dog and the page.
+    const COLORS = { T: '#c8924f', t: '#a87638', B: '#6a9ccc', b: '#4a7cab' };
+    let jar = null, held = null, falling = [], line = null, lastLayout = '';
+    const MOUTH_UP = 7; // A begging dog's mouth is about seven sprite pixels above its feet.
+    const mouthOf = d => ({ x: d.x + d.face * 6.5 * P, y: d.y - MOUTH_UP * P });
+    function placeJar() {
+      const near = (x, y) => bowls.some(b => Math.abs(b.x - x) < 16 * P && Math.abs(b.y - y) < 10 * P);
+      for (const fy of [.62, .5, .72, .4, .8, .3, .56, .68])
+        for (const fx of [.14, .22, .3, .08, .4, .5, .6, .7, .8, .88]) {
+          const x = width * fx, y = height * fy;
+          const box = { l: x - 4 * P - 14, r: x + 4 * P + 14, t: y - 7 * P - 14, b: y + 10 };
+          if (!valid(x, y) || inZone(x, y) || near(x, y)) continue;
+          if (avoid.some(r => box.l < r.r && box.r > r.l && box.t < r.b && box.b > r.t)) continue;
+          if (zone && box.l < zone.r && box.r > zone.l && box.t < zone.b && box.b > zone.t) continue;
+          return { x, y };
+        }
+      return null;
+    }
+    const onJar = (x, y) => jar && !night && !reduced.matches && x > jar.x - 5 * P && x < jar.x + 5 * P && y > jar.y - 8 * P && y < jar.y + 2 * P;
+    // The begging row: one sitting spot per dog, side by side a little below the treat.
+    function formLine(at) {
+      const diners = dogs.filter(d => ['beg', 'chew'].includes(d.act.type) || idleDog(d) || d.act.type === 'eat' || d.act.type === 'sniffbowl')
+        .filter(d => !['sleep', 'tobed', 'wake'].includes(d.act.type));
+      if (!diners.length) return;
+      const gap = 20 * P, y = clamp(at.y + 22 * P, minY() + 10 * P, maxY() - 4);
+      const cx = clamp(at.x, minX() + gap, maxX() - gap);
+      line = { x: cx, y, t: 0 };
+      diners.sort((a, b) => a.x - b.x).forEach((d, i) => {
+        if (d.act.type === 'chew') return;
+        const want = nearestValid(cx + (i - (diners.length - 1) / 2) * gap, y);
+        setAct(d, 'beg'); d.act.hold = 99; d.act.watch = held || at;
+        if (Math.hypot(want.x - d.x, want.y - d.y) > 6 && goTo(d, want, 'trot')) rollPant(d);
+        d.act.onArrive = dd => { dd.act.still = 'beg'; };
+        if (!d.path.length) d.act.still = 'beg';
+      });
+    }
+    // Everyone still waiting goes back to their day after a little while.
+    const release = (after = rand(2.5, 4)) => { for (const d of dogs) if (d.act.type === 'beg') { d.act.hold = after + rand(0, 1); d.act.watch = null; } };
+    function chew(d) {
+      setAct(d, 'chew'); d.act.still = 'beg'; d.act.hold = rand(1.6, 2.2); d.act.dur = d.act.hold; d.stir = d.act.hold;
+      for (const o of dogs) if (o !== d && o.act.type === 'beg' && !held) o.act.watch = d; // The others watch the lucky one.
+      d.mood.hunger = Math.max(0, d.mood.hunger - .15);
+    }
+    function drop() {
+      const t = held; held = null;
+      if (!t) return;
+      // A seated, waiting dog whose mouth is just under the treat catches it.
+      const catcher = dogs.filter(d => d.act.type === 'beg' && !d.path.length)
+        .map(d => ({ d, m: mouthOf(d) }))
+        .filter(({ m }) => Math.abs(t.x - m.x) < 8 * P && t.y < m.y + 2 * P)
+        .sort((a, b) => Math.abs(t.x - a.m.x) - Math.abs(t.x - b.m.x))[0];
+      const ground = catcher ? catcher.m.y : clamp(Math.max(t.y + 12 * P, line ? line.y + 6 * P : t.y + 20 * P), minY(), maxY());
+      falling.push({ x: catcher ? catcher.m.x : t.x, y: t.y, vy: 0, to: ground, catcher: catcher?.d || null, rest: 0 });
+      if (line) line.t = 0;
+    }
+    function grab(f) {
+      // Nearest dog trots over to the treat on the ground and eats it.
+      const d = dogs.filter(o => o.act.type === 'beg' || idleDog(o)).sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
+      if (!d) { f.rest = 4; return; }
+      const side = d.x < f.x ? -1 : 1;
+      setAct(d, 'treatgrab'); d.act.hold = 99; f.taker = d;
+      if (!goTo(d, nearestValid(f.x + side * 7 * P, f.y), 'trot')) { d.act.hold = 1; f.taker = null; f.rest = 4; return; }
+      d.act.onArrive = dd => { dd.face = -side; dd.act.still = 'sniff'; dd.act.hold = 99; f.eatAt = .7; };
+    }
+    const down = e => {
+      if (!onJar(e.clientX, e.clientY) || onControl(e.target)) return;
+      e.preventDefault();
+      held = { x: e.clientX, y: e.clientY };
+      swallowClickUntil = performance.now() + 1e9; // Until the drag ends.
+      formLine(held);
+    };
+    const move = e => {
+      if (!held) return;
+      held.x = e.clientX; held.y = e.clientY;
+      // Let the row follow if the treat is carried somewhere else.
+      if (line && line.t > .8 && (Math.abs(held.x - line.x) > 140 || Math.abs(held.y + 22 * P - line.y) > 110)) formLine(held);
+    };
+    const up = () => { if (!held) return; drop(); swallowClickUntil = performance.now() + 350; };
+    const noSelect = e => { if (onJar(e.clientX, e.clientY)) e.preventDefault(); }; // No text selection while dragging a treat.
+    const noTouchScroll = e => { const t = e.touches?.[0]; if (held || (t && onJar(t.clientX, t.clientY))) e.preventDefault(); };
+    addEventListener('pointerdown', down);
+    addEventListener('mousedown', noSelect);
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+    addEventListener('touchstart', noTouchScroll, { passive: false });
+    addEventListener('touchmove', noTouchScroll, { passive: false });
+    cleanups.push(() => {
+      removeEventListener('pointerdown', down); removeEventListener('mousedown', noSelect); removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      removeEventListener('touchstart', noTouchScroll); removeEventListener('touchmove', noTouchScroll);
+    });
+    extras.push({
+      cursor: (x, y) => held ? 'grabbing' : onJar(x, y) ? 'grab' : null,
+      update(dt) {
+        const layout = `${width}x${height}:${avoid.map(r => Math.round(r.t)).join(',')}:${bowls.length}`;
+        if (layout !== lastLayout) { lastLayout = layout; jar = placeJar(); }
+        if (night) { if (held) held = null; falling = []; line = null; return; }
+        if (line) line.t += dt;
+        // Waiting dogs keep their eyes on the treat and wag hard.
+        for (const d of dogs) {
+          if (d.act.type === 'beg') { if (held) d.act.watch = held; if (!d.path.length) d.stir = Math.max(d.stir, .3); }
+          if (d.act.type === 'chew' && Math.sin(clock * 14 + d.seed) > .3) d.tongue = .12; // Munching.
+        }
+        for (let i = falling.length - 1; i >= 0; i--) {
+          const f = falling[i];
+          if (f.y < f.to) {
+            f.vy += 1400 * dt; f.y = Math.min(f.to, f.y + f.vy * dt);
+            if (f.y >= f.to) {
+              if (f.catcher && f.catcher.act.type === 'beg') { chew(f.catcher); falling.splice(i, 1); if (!held) release(); continue; }
+              grab(f);
+            }
+            continue;
+          }
+          if (f.eatAt !== undefined && (f.eatAt -= dt) <= 0) { if (f.taker?.act.type === 'treatgrab') chew(f.taker); falling.splice(i, 1); if (!held) release(); continue; }
+          if (f.taker && f.taker.act.type !== 'treatgrab' && f.eatAt === undefined) { f.taker = null; grab(f); }
+          if (f.rest > 0 && (f.rest -= dt) <= 0) falling.splice(i, 1);
+        }
+        // Nobody's offering anything: drift off after a while.
+        if (!held && !falling.length && line && line.t > 6) { release(); line = null; }
+      },
+      items(items) {
+        if (!jar || night) return;
+        const j = jar;
+        items.push({ y: j.y, draw: () => {
+          const gx = Math.round(j.x * dpr / PD), gy = Math.round(j.y * dpr / PD);
+          JAR.forEach((row, ry) => [...row].forEach((ch, cx) => {
+            if (ch === '.') return;
+            ctx.fillStyle = COLORS[ch]; ctx.fillRect((gx + cx - 3) * PD, (gy + ry - JAR.length) * PD, PD, PD);
+          }));
+        } });
+        for (const f of falling) items.push({ y: f.y >= f.to ? f.to : 1e9, draw: () => bone(f.x, f.y) });
+        // The treat stays in a chewing dog's mouth, getting smaller bite by bite.
+        for (const d of dogs) if (d.act.type === 'chew' && d.render) {
+          const left = (d.act.dur - d.act.t) / d.act.dur, r = d.render;
+          if (left <= .15) continue;
+          items.push({ y: d.y + .3, draw: () => {
+            const bob = Math.sin(clock * 14 + d.seed) > 0 ? 1 : 0; // Chomp, chomp.
+            const mx = r.gx + 7 * r.face, my = r.gy - MOUTH_UP - 1 + bob, w = left > .6 ? 3 : left > .35 ? 2 : 1;
+            ctx.fillStyle = COLORS.T;
+            for (let k = 0; k < w; k++) ctx.fillRect((mx + k * r.face) * PD, my * PD, PD, PD);
+            ctx.fillStyle = COLORS.t; ctx.fillRect((mx + (w - 1) * r.face) * PD, (my - 1) * PD, PD, PD); // A knob end.
+          } });
+        }
+      },
+      overlay() { if (held) bone(held.x, held.y); },
+    });
+    function bone(x, y) {
+      const gx = Math.round(x * dpr / PD), gy = Math.round(y * dpr / PD);
+      BONE.forEach((row, ry) => [...row].forEach((ch, cx) => {
+        if (ch === '.') return;
+        ctx.fillStyle = COLORS[ch]; ctx.fillRect((gx + cx - 2) * PD, (gy + ry - 2) * PD, PD, PD);
+      }));
+    }
+    canvas.treatDebug = () => ({ jar, held, falling: falling.map(f => ({ x: f.x, y: f.y, to: f.to, catcher: f.catcher ? dogs.indexOf(f.catcher) : -1 })), line, acts: dogs.map(d => d.act.type) });
   }
 
   resize();
