@@ -209,3 +209,5 @@ body:is([data-page=home-side],[data-page=home]) .site-shell{position:relative;z-
 /* About: a small portrait at the top right of the Research text, which wraps around it. */
 .reading-prose .headshot{float:right;width:136px;height:auto;margin:6px 0 14px 28px;border-radius:3px}
 @media(max-width:540px){.reading-prose .headshot{width:104px;margin:4px 0 10px 16px}}
+/* Monospace lines stop short of the column edge by a partial character; end the photo where the longest lines end. */
+.reading-prose .headshot{margin-right:calc(100% - round(down, 100%, 1ch))}
