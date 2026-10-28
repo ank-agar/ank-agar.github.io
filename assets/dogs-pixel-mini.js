@@ -402,7 +402,8 @@ export function startDogs(canvas) {
       rowL = lineBox.r + 16; // Starting just past that line's right end.
       if (headBox && headBox.b > baseY - 9 * P) rowL = Math.max(rowL, headBox.r + 3 * P);
     } else { baseY = height * .7; rowL = width * .6; }
-    rowL = Math.max(6, Math.min(rowL, width - rowW - 6));
+    const edge = width < 600 ? 22 : 6; // On phones, keep the beds inside the same side margin as the text.
+    rowL = Math.max(edge, Math.min(rowL, width - rowW - edge));
     const faces = [1, 1, -1];
     beds = [0, 1, 2].map(i => ({ x: rowL + (BED_HALF + i * (2 * BED_HALF + 1 + BED_GAP)) * P + P / 2, y: baseY, face: faces[i] }));
     zone = { l: rowL - 3 * P, r: rowL + rowW + 3 * P, t: baseY - Math.max(20 * P, 90), b: baseY + 2 };

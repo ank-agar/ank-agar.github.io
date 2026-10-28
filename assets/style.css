@@ -211,3 +211,8 @@ body:is([data-page=home-side],[data-page=home]) .site-shell{position:relative;z-
 @media(max-width:540px){.reading-prose .headshot{width:104px;margin:4px 0 10px 16px}}
 /* Monospace lines stop short of the column edge by a partial character; end the photo where the longest lines end. */
 .reading-prose .headshot{margin-right:calc(100% - round(down, 100%, 1ch))}
+/* Home fits exactly one screen (header, bio, footer), so it never scrolls: the dogs are pinned to the
+   screen, and scrolling would slide the bio underneath them. */
+body[data-page=home] .site-shell{min-height:100svh}
+body[data-page=home] .home-alt{min-height:0;flex:1}
+@media(max-width:540px){body[data-page=home] .home-alt{padding-bottom:40px}}
