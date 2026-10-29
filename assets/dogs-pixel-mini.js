@@ -1854,6 +1854,9 @@ export function startDogs(canvas) {
     // A toasty biscuit color, dark enough to stand out against the cream dog and the page.
     const COLORS = { T: '#c8924f', t: '#a87638', B: '#6a9ccc', b: '#4a7cab' };
     let jar = null, held = null, falling = [], crumbs = [], line = null, lastLayout = '';
+    // The bowl only comes out now and then: a couple of minutes at a time, with longer gaps between.
+    // ?event=treats puts it out right away.
+    let shown = eventParam === 'treats', vis = shown ? 1 : 0, turn = shown ? rand(150, 240) : rand(25, 80);
     const MOUTH_UP = 7; // A begging dog's mouth is about seven sprite pixels above its feet.
     const mouthOf = d => ({ x: d.x + d.face * 6.5 * P, y: d.y - MOUTH_UP * P });
     function placeJar() {
@@ -1869,7 +1872,7 @@ export function startDogs(canvas) {
         }
       return null;
     }
-    const onJar = (x, y) => jar && !night && !reduced.matches && x > jar.x - 5 * P && x < jar.x + 5 * P && y > jar.y - 8 * P && y < jar.y + 2 * P;
+    const onJar = (x, y) => jar && shown && !night && !reduced.matches && x > jar.x - 5 * P && x < jar.x + 5 * P && y > jar.y - 8 * P && y < jar.y + 2 * P;
     // The begging row: one sitting spot per dog, side by side a little below the treat.
     function formLine(at) {
       const diners = dogs.filter(d => d.act.type === 'beg' || idleDog(d) || d.act.type === 'eat' || d.act.type === 'sniffbowl')
@@ -1968,6 +1971,9 @@ export function startDogs(canvas) {
       update(dt) {
         const layout = `${width}x${height}:${avoid.map(r => Math.round(r.t)).join(',')}:${bowls.length}`;
         if (layout !== lastLayout) { lastLayout = layout; jar = placeJar(); }
+        // Never put away mid-treat: wait until the treat is given and the line is gone.
+        if ((turn -= dt) <= 0 && !(shown && (held || falling.length || line))) { shown = !shown; turn = shown ? rand(90, 180) : rand(150, 330); }
+        vis = clamp(vis + (shown ? dt : -dt) * 2, 0, 1);
         if (night) { if (held) held = null; falling = []; crumbs = []; line = null; return; }
         if (line) line.t += dt;
         // Let the row follow if the treat is carried somewhere else.
@@ -2016,14 +2022,16 @@ export function startDogs(canvas) {
         if (line && !held && !dogs.some(d => d.act.type === 'beg')) line = null;
       },
       items(items) {
-        if (!jar || night) return;
+        if (!jar || night || vis <= 0) return;
         const j = jar;
         items.push({ y: j.y, draw: () => {
           const gx = Math.round(j.x * dpr / PD), gy = Math.round(j.y * dpr / PD);
           JAR.forEach((row, ry) => [...row].forEach((ch, cx) => {
             if (ch === '.') return;
-            ctx.fillStyle = COLORS[ch]; ctx.fillRect((gx + cx - 3) * PD, (gy + ry - JAR.length) * PD, PD, PD);
+            ctx.fillStyle = COLORS[ch]; ctx.globalAlpha = Math.ceil(vis * 4) / 4; // Fades in and out in coarse steps.
+            ctx.fillRect((gx + cx - 3) * PD, (gy + ry - JAR.length) * PD, PD, PD);
           }));
+          ctx.globalAlpha = 1;
         } });
         for (const f of falling) items.push({ y: f.y >= f.to ? f.to : 1e9, draw: () => bone(f.x, f.y) });
         for (const c of crumbs) items.push({ y: c.y >= c.to ? c.to : 1e9, draw: () => {
@@ -2058,7 +2066,7 @@ export function startDogs(canvas) {
         ctx.fillStyle = COLORS[ch]; ctx.fillRect((gx + cx - 2) * PD, (gy + ry - 2) * PD, PD, PD);
       }));
     }
-    canvas.treatDebug = () => ({ jar, held, crumbs: crumbs.length, falling: falling.map(f => ({ x: f.x, y: f.y, to: f.to, catcher: f.catcher ? dogs.indexOf(f.catcher) : -1 })), line, acts: dogs.map(d => d.act.type) });
+    canvas.treatDebug = () => ({ jar, shown, held, crumbs: crumbs.length, falling: falling.map(f => ({ x: f.x, y: f.y, to: f.to, catcher: f.catcher ? dogs.indexOf(f.catcher) : -1 })), line, acts: dogs.map(d => d.act.type) });
   }
 
   resize();
