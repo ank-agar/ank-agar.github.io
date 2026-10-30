@@ -220,4 +220,4 @@ body[data-page=home] .home-alt{min-height:0;flex:1}
 .reading-prose .headshot{border-radius:5px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
 html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,.5)}
 /* Academic service: the capacity note is a quiet aside. */
-.reading-prose .aside{color:var(--muted)}
+.reading-prose .aside{color:var(--muted);font-size:.85em}
