@@ -221,6 +221,8 @@ body[data-page=home] .home-alt{min-height:0;flex:1}
 html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,.5)}
 /* Academic service: the capacity note is a quiet aside. */
 .reading-prose .aside{color:var(--muted);font-size:.85em}
-.egg-icon{display:inline-block;vertical-align:-6px;margin-right:1px}
+/* The Easter egg note: small italic text with the egg no taller than the letters. */
+.reading-prose .egg-note{font-size:.85em}
+.egg-icon{display:inline-block;height:1em;width:auto;vertical-align:-.12em}
 :root[data-theme=dark] .egg-icon .egg-rim{fill:#d9c6ad}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .egg-icon .egg-rim{fill:#d9c6ad}}
