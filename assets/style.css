@@ -226,3 +226,4 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
 .egg-icon{display:inline-block;height:1em;width:auto;vertical-align:-.12em}
 :root[data-theme=dark] .egg-icon .egg-rim{fill:#d9c6ad}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .egg-icon .egg-rim{fill:#d9c6ad}}
+.version-list+p{margin-top:19px} /* Same gap as between paragraphs. */
