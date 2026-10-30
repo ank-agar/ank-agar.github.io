@@ -1,4 +1,4 @@
-import { render, CHORD, NOTES } from './guitar.js';
+import { render, CHORDS } from './guitar.js';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const soundButton = document.querySelector('#sound-toggle');
@@ -32,19 +32,19 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
 });
 
 // Guitar synthesis lives in guitar.js; rendered buffers are cached per note.
-// A link's data-note is 0 for the whole chord, otherwise the 1-based index of one of its notes.
+// A link's data-note names the chord it strums (see CHORDS in guitar.js).
 const buffers = new Map();
-function buffer(index) {
-  const key = index;
+function buffer(name) {
+  const key = CHORDS[name] ? name : 'dm';
   if (!buffers.has(key)) {
-    const data = index ? render([NOTES[(index - 1) % NOTES.length]], context.sampleRate, { seconds: 2.4 }) : render(CHORD, context.sampleRate);
+    const data = render(CHORDS[key], context.sampleRate);
     const audio = context.createBuffer(1, data.length, context.sampleRate);
     audio.copyToChannel(data, 0);
     buffers.set(key, audio);
   }
   return buffers.get(key);
 }
-async function play(note = 0) {
+async function play(note = 'dm') {
   if (!soundEnabled) return;
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -54,7 +54,7 @@ async function play(note = 0) {
     const source = context.createBufferSource();
     source.buffer = buffer(note);
     const gain = context.createGain();
-    gain.gain.value = note ? .32 : .42;
+    gain.gain.value = .42;
     source.connect(gain).connect(context.destination);
     source.start(context.currentTime + .01);
   } catch {
@@ -143,7 +143,7 @@ document.addEventListener('click', event => {
   if (url.origin !== location.origin || url.hash || url.search || location.search || !url.pathname.startsWith(siteBase.pathname) || !routes.has(routeKey(url))) return;
   event.preventDefault();
   if (link.hasAttribute('data-note')) {
-    void play(Number(link.dataset.note));
+    void play(link.dataset.note);
     if (!reducedMotion.matches && soundEnabled) {
       link.classList.remove('note-playing');
       requestAnimationFrame(() => link.classList.add('note-playing'));

@@ -6,10 +6,12 @@
 // delay allpass, so every string is exactly in tune. The mix then goes through
 // a small guitar-body EQ, gentle tube-style saturation, and a short room reverb.
 
-// F barre chord, strummed low to high: E1 A3 D3 G2 B1 e1 = F2 C3 F3 A3 C4 F4.
-export const CHORD = [87.31, 130.81, 174.61, 220.00, 261.63, 349.23];
-// Single tones from it for the six nav links.
-export const NOTES = [130.81, 174.61, 220.00, 261.63, 349.23, 440.00];
+// Chords from Californication (Red Hot Chili Peppers), strummed low to high on only the strings each shape plays.
+export const CHORDS = {
+  dm: [146.83, 220.00, 293.66, 349.23], // Dm, xx0231: D3 A3 D4 F4. The name and Home.
+  am: [110.00, 164.81, 220.00, 261.63, 329.63], // Am, x02210: A2 E3 A3 C4 E4. About.
+  fmaj7: [130.81, 174.61, 220.00, 261.63, 329.63], // Fmaj7, x33210: C3 F3 A3 C4 E4. Papers.
+};
 
 function string(out, start, sr, freq, velocity, seed) {
   let rand = seed;
