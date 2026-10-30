@@ -35,7 +35,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
 // A link's data-note names the chord it strums (see CHORDS in guitar.js).
 const buffers = new Map();
 function buffer(name) {
-  const key = CHORDS[name] ? name : 'dm';
+  const key = CHORDS[name] ? name : 'g';
   if (!buffers.has(key)) {
     const data = render(CHORDS[key], context.sampleRate);
     const audio = context.createBuffer(1, data.length, context.sampleRate);
@@ -44,7 +44,7 @@ function buffer(name) {
   }
   return buffers.get(key);
 }
-async function play(note = 'dm') {
+async function play(note = 'g') {
   if (!soundEnabled) return;
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;

@@ -7,8 +7,10 @@
 // a small guitar-body EQ, gentle tube-style saturation, and a short room reverb.
 
 // Chords from Californication (Red Hot Chili Peppers), strummed low to high on only the strings each shape plays.
+// Left to right the header plays G, D, Am, Fmaj7: the end of the chorus running into the verse.
 export const CHORDS = {
-  dm: [146.83, 220.00, 293.66, 349.23], // Dm, xx0231: D3 A3 D4 F4. The name and Home.
+  g: [98.00, 123.47, 146.83, 196.00, 246.94, 392.00], // G, 320003: G2 B2 D3 G3 B3 G4. The name.
+  d: [146.83, 220.00, 293.66, 369.99], // D, xx0232: D3 A3 D4 F#4. Home.
   am: [110.00, 164.81, 220.00, 261.63, 329.63], // Am, x02210: A2 E3 A3 C4 E4. About.
   fmaj7: [130.81, 174.61, 220.00, 261.63, 329.63], // Fmaj7, x33210: C3 F3 A3 C4 E4. Papers.
 };
