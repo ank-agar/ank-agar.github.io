@@ -24,12 +24,19 @@ function syncPreferences() {
 syncPreferences();
 themeButton.addEventListener('click', () => {
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-  safeSet('ank-theme', root.dataset.theme);
+  // A switch made at night only lasts until morning; one made by day is kept as the daytime choice.
+  if (window.ankTheme.isNight()) safeSet('ank-night-theme', `${window.ankTheme.nightKey()}|${root.dataset.theme}`);
+  else safeSet('ank-theme', root.dataset.theme);
   syncPreferences();
 });
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-  if (!safeGet('ank-theme')) { root.dataset.theme = event.matches ? 'dark' : 'light'; syncPreferences(); }
-});
+// Follow the system setting and the clock: dark (and the dogs off to bed) at 10pm, light again at 6am.
+const applyTheme = () => {
+  const theme = window.ankTheme.pick();
+  if (root.dataset.theme !== theme) { root.dataset.theme = theme; syncPreferences(); }
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+setInterval(applyTheme, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) applyTheme(); });
 
 // Guitar synthesis lives in guitar.js; rendered buffers are cached per note.
 // A link's data-note names the chord it strums (see CHORDS in guitar.js).

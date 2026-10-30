@@ -1387,9 +1387,10 @@ export function startDogs(canvas) {
   }
 
   // ==== Feature: fetch ========================================================================
-  // Double-click empty space to toss a small tennis ball; it arcs and bounces to the spot. The
-  // keenest available dog runs to grab it, trots back toward where the cursor last was and drops
-  // it; others may tag along. A single click and a head click keep their meanings.
+  // Double-click empty space to toss a small tennis ball; it arcs and bounces to the spot. Oshie
+  // and Brodie (the two black dogs) both race for it; the keener one grabs it, trots back toward
+  // where the cursor last was and drops it. Kodie (the blonde) doesn't care for balls and stays put.
+  // A single click and a head click keep their meanings.
   {
     let ball = null;
     const cursor = { x: innerWidth / 2, y: innerHeight / 2 };
@@ -1407,7 +1408,7 @@ export function startDogs(canvas) {
       const from = { x: clamp(spot.x - dir * rand(70, 120), 10, width - 10), y: spot.y };
       // Arc in, then two shrinking bounces.
       ball = { x: from.x, y: spot.y, z: 0, from, to: spot, t: 0, hops: [[.7, 60], [.3, 14], [.18, 5]], hop: 0, rest: false, carried: null, life: 12 };
-      const free = dogs.filter(d => !['sleep', 'tobed', 'pat'].includes(d.act.type));
+      const free = dogs.filter(d => d.coat !== 'blonde' && !['sleep', 'tobed', 'pat', 'beg', 'chew', 'treatgrab', 'tug'].includes(d.act.type));
       if (!free.length) return;
       const score = d => d.mood.energy * 1.2 + d.mood.social * .3 + Math.random() * .4 - Math.hypot(d.x - spot.x, d.y - spot.y) / 1500 - (d.act.type === 'eat' ? .6 : 0);
       const keen = free.sort((a, b) => score(b) - score(a))[0];
@@ -1416,9 +1417,10 @@ export function startDogs(canvas) {
       keen.act.hold = 99; rollPant(keen);
       if (!goTo(keen, nearestValid(spot.x + side * 8 * P, spot.y), 'trot')) { keen.act.hold = 1; return; }
       keen.act.onArrive = d => { d.face = -side; d.act.waitBall = true; };
-      for (const o of free) if (o !== keen && o.act.type !== 'eat' && Math.random() < .2 + .45 * o.mood.energy * o.mood.social) {
-        const want = nearestValid(spot.x + rand(-20, 20) * P, spot.y + rand(-6, 6) * P);
-        setAct(o, 'come', false, { spot: want, center: want, left: 1, delay: rand(.2, .9) });
+      // The other one races for it too, a step behind, and mills around once it loses.
+      for (const o of free) if (o !== keen && o.act.type !== 'eat') {
+        const want = nearestValid(spot.x - side * rand(14, 20) * P, spot.y + rand(-5, 5) * P);
+        setAct(o, 'come', false, { spot: want, center: want, left: 1, delay: rand(.05, .35) });
         rollPant(o);
       }
     }
@@ -1553,8 +1555,8 @@ export function startDogs(canvas) {
   }
 
   // ==== Feature: tug-of-war ===================================================================
-  // Every 3-5 minutes (or soon, with ?event=tug) a striped rope toy turns up and the two most
-  // playful free puppies grab an end each. They play-bow and pull, the pair lurching a pixel this
+  // Every 3-5 minutes (or soon, with ?event=tug) a striped rope toy turns up. Kodie (the blonde)
+  // loves ropes, so he always takes one end, and the more playful free black dog takes the other. They play-bow and pull, the pair lurching a pixel this
   // way and that, until one wins and trots off with the rope to drop it; the third may sit and watch.
   {
     const forced = eventParam === 'tug';
@@ -1562,10 +1564,11 @@ export function startDogs(canvas) {
     let game = null, wait = forced ? 3 : rand(180, 300);
     const GAP = 11; // Dog pixels from the rope's middle to each dog's foot point.
     function begin() {
-      const free = dogs.filter(idleDog);
-      if (free.length < 2) { wait = 12; return; }
+      const kodie = dogs.find(d => d.coat === 'blonde');
+      const free = dogs.filter(d => d !== kodie && idleDog(d));
+      if (!idleDog(kodie) || !free.length) { wait = 12; return; }
       free.sort((a, b) => (b.mood.energy + b.mood.social) - (a.mood.energy + a.mood.social) + rand(-.4, .4));
-      const [a, b] = free, gap = GAP * P;
+      const a = kodie, b = free[0], gap = GAP * P;
       let mid = null;
       for (let i = 0; i < 60 && !mid; i++) {
         const x = (a.x + b.x) / 2 + rand(-200, 200), y = (a.y + b.y) / 2 + rand(-90, 90);
