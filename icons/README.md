@@ -7,7 +7,8 @@ The source maps live in `src/icons.mjs` of the site's source; each pixel is one 
 |---|---|---|
 | ![technical](sigma.svg) | `sigma` | technical |
 | ![policy](policy.svg) | `policy` | policy |
-| ![wet lab](dna.svg) | `dna` | wet lab |
+| ![wet lab](flask.svg) | `flask` | wet lab |
+| ![DNA](dna.svg) | `dna` | DNA |
 | ![live-cell imaging](film.svg) | `film` | live-cell imaging |
 | ![cellular genetics](cellgen.svg) | `cellgen` | cellular genetics |
 | ![single-cell omics](omics.svg) | `omics` | single-cell omics |
