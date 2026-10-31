@@ -227,20 +227,10 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
 .traj-axis i{flex:1;height:1px;background:var(--muted);opacity:.6;position:relative}
 .traj-axis i::after{content:"";position:absolute;right:-1px;top:-3px;border:3.5px solid transparent;border-left:6px solid var(--muted);border-right:0}
 .traj{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0 12px}
-.traj-step{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;font-size:11px;line-height:1.45;color:var(--text);cursor:pointer;outline:none;transition:opacity .15s}
-.traj:hover .traj-step:not(:hover),.traj:focus-within .traj-step:not(:focus){opacity:.45}
-.traj-step:focus-visible .traj-label{outline:1px dotted var(--accent);outline-offset:3px}
+.traj-step{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;font-size:11px;line-height:1.45;color:var(--text);}
 .traj-icon{height:44px;display:flex;align-items:center}
 .traj-icon svg{display:block}
 .traj-label{margin-top:9px}
-.traj-step:hover .traj-label,.traj-step:focus .traj-label{color:var(--accent)}
-:root[data-theme=dark] .traj:hover .traj-step:not(:hover),:root[data-theme=dark] .traj:focus-within .traj-step:not(:focus){opacity:.6}
-/* The story opens just under its step, with a small pointer up to it. */
-.traj-tip{position:absolute;top:calc(100% + 9px);left:50%;transform:translateX(-50%);width:240px;padding:8px 11px;border-radius:4px;background:var(--heading);color:var(--bg);font-size:12px;line-height:1.5;text-align:left;opacity:0;visibility:hidden;transition:opacity .15s;z-index:5;pointer-events:none}
-.traj-tip::before{content:"";position:absolute;top:-5px;left:50%;margin-left:-5px;border:5px solid transparent;border-bottom-color:var(--heading);border-top:0}
-.traj-step:first-child .traj-tip{left:0;transform:none}.traj-step:first-child .traj-tip::before{left:18px}
-.traj-step:last-child .traj-tip{left:auto;right:0;transform:none}.traj-step:last-child .traj-tip::before{left:auto;right:13px}
-.traj-step:hover .traj-tip,.traj-step:focus .traj-tip{opacity:1;visibility:visible}
 /* Policy: a second, dashed line that starts under step 2 and runs to the end. */
 .traj-policy{position:relative;display:flex;align-items:center;gap:8px;margin:22px 30px 0 calc((100% - 60px) / 6 * 1.5 + 12px);padding:10px 0 0 12px;border-top:1px dashed var(--muted);font-size:11px;color:var(--muted);text-decoration:none}
 .traj-policy::after{content:"";position:absolute;right:-1px;top:-4px;border:3.5px solid transparent;border-left:6px solid var(--muted);border-right:0;opacity:.6} /* Ends under the main arrow's head. */
@@ -255,9 +245,6 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
   .traj-step{display:grid;grid-template-columns:66px minmax(0,1fr);column-gap:12px;align-items:center;text-align:left;min-height:30px}
   .traj-icon{height:auto;justify-content:center}
   .traj-label{margin:0}
-  .traj-tip{position:static;grid-column:2;transform:none;width:auto;display:none;margin-top:4px;background:none;color:var(--muted);padding:0;opacity:1;visibility:visible}
-  .traj-tip::before{display:none}
-  .traj-step:focus .traj-tip{display:block}
   .traj-policy{grid-column:2;margin:22px 0 0;padding-left:24px;gap:36px} /* Icon centered under the step icons, text in line with their labels. */
   .traj-policy::after{display:none}
 }
