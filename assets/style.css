@@ -221,14 +221,14 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
 .reading-prose .egg-note{font-size:.85em}
 .egg-icon{display:inline-block;height:1em;width:auto;vertical-align:-.12em}
 .version-list+p{margin-top:19px} /* Same gap as between paragraphs. */
-/* Research path on About: six icons sitting on an arrow, with their labels below. */
+/* Research path on About: six icons with their labels, underlined by one arrow. */
 .trajectory{margin:19px 0 4px}
 .traj{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));column-gap:12px}
 .traj-step{display:contents}
 .traj-icon{grid-row:1;grid-column:var(--c);height:44px;display:flex;align-items:flex-end;justify-content:center}
 .traj-icon svg{display:block}
-.traj-label{grid-row:3;grid-column:var(--c);text-align:center;font-size:11px;line-height:1.45;color:var(--text)}
-.traj-axis{grid-row:2;grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:12px 0 10px;font-size:11px;color:var(--muted);font-style:italic}
+.traj-label{grid-row:2;grid-column:var(--c);margin-top:12px;text-align:center;font-size:11px;line-height:1.45;color:var(--text)}
+.traj-axis{grid-row:3;grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:12px 0 0;font-size:11px;color:var(--muted);font-style:italic}
 .traj-axis i{flex:1;height:1px;background:var(--muted);opacity:.6;position:relative}
 .traj-axis i::after{content:"";position:absolute;right:-1px;top:-3px;border:3.5px solid transparent;border-left:6px solid var(--muted);border-right:0}
 @media(max-width:540px){
@@ -236,7 +236,7 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
   .traj-step{display:grid;grid-template-columns:66px minmax(0,1fr);column-gap:12px;align-items:center}
   .traj-icon,.traj-label{grid-row:auto;grid-column:auto}
   .traj-icon{height:auto}
-  .traj-label{text-align:left}
+  .traj-label{text-align:left;margin-top:0}
   .traj-axis{display:none}
           }
 :root{--px-p:#857865;--px-c:#8f826d;--px-b:#6f6352;--px-G:#5c6773;--px-L:#55a050;--px-r:#b9b1a3;--px-P:#a0603c;--px-Q:#c08a62;--px-o:#b5866a;--px-n:#5f7f4f;--px-S:#55524c;--px-O:#9c8b7a;--px-W:#fbf3e4;--px-K:#e58fa8;--px-B:#7fb0d9;--px-Y:#f0c94a;--px-sigma-a:#3d3a35;--px-dna-a:#3b78e7;--px-dna-b:#e8508f;--px-dna-c:#f2c14e;--px-film-a:#3f8f45;--px-film-b:#222222;--px-film-c:#8e5bb5;--px-film-d:#cfd8dc;--px-film-e:#ffffff;--px-cellgen-a:#3b78e7;--px-cellgen-b:#3f8f45;--px-cellgen-c:#e8508f;--px-cellgen-d:#a5d6a7;--px-cellgen-e:#8e5bb5;--px-cellgen-f:#f08a3c;--px-cellgen-g:#f2c14e;--px-omics-a:#43a047;--px-omics-b:#1e88e5;--px-omics-c:#ffb300;--px-omics-d:#e53935;--px-omics-e:#90a4ae;--px-helix-a:#3949ab;--px-helix-b:#9fa8da;--px-heatmap-a:#b2182b;--px-heatmap-b:#9e9e9e;--px-heatmap-c:#2166ac;--px-heatmap-d:#92c5de;--px-heatmap-e:#e8e1ef;--px-heatmap-f:#cba5a7}
