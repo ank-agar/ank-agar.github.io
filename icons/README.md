@@ -6,6 +6,7 @@ The source maps live in `src/icons.mjs` of the site's source; each pixel is one 
 |  | name | what it is |
 |---|---|---|
 | ![technical](sigma.svg) | `sigma` | technical |
+| ![technical](sigmaSmall.svg) | `sigmaSmall` | technical |
 | ![policy](policy.svg) | `policy` | policy |
 | ![wet lab](flask.svg) | `flask` | wet lab |
 | ![DNA](dna.svg) | `dna` | DNA |
