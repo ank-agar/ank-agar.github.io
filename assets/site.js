@@ -1,4 +1,4 @@
-import { render, CHORDS } from './guitar.js?v=b76a01422a';
+import { render, CHORDS } from './guitar.js?v=1ba8479f22';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const soundButton = document.querySelector('#sound-toggle');
@@ -79,7 +79,7 @@ soundButton.addEventListener('click', () => {
 });
 
 // Each alternate home names its dog animation; modules load only on the page that uses them.
-const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=b76a01422a' };
+const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=1ba8479f22' };
 let stopDogs, dogRun = 0;
 function setupPage() {
   stopDogs?.();
@@ -108,7 +108,7 @@ const routeKey = url => {
   const relative = pathname.startsWith(siteBase.pathname) ? pathname.slice(siteBase.pathname.length) : pathname;
   return relative.replace(/index\.html$/, '').replace(/\/$/, '') || 'home';
 };
-const routes = new Set(['home', 'research', 'about', 'misc']);
+const routes = new Set(['home', 'research', 'about']);
 let navigation;
 async function navigate(url, push = true) {
   navigation?.abort();
