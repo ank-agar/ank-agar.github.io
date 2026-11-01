@@ -1,4 +1,4 @@
-import { render, CHORDS } from './guitar.js?v=1ba8479f22';
+import { render, CHORDS } from './guitar.js?v=e80fb7049b';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
 const soundButton = document.querySelector('#sound-toggle');
@@ -79,7 +79,7 @@ soundButton.addEventListener('click', () => {
 });
 
 // Each alternate home names its dog animation; modules load only on the page that uses them.
-const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=1ba8479f22' };
+const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=e80fb7049b' };
 let stopDogs, dogRun = 0;
 function setupPage() {
   stopDogs?.();
