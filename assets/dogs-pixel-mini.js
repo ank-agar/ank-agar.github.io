@@ -230,7 +230,6 @@ const BOWL_COLORS = {
 // Beds are 17 sprite pixels wide, centered on the sleeping dog's foot point.
 const BED_HALF = 8, BED_GAP = 2;
 // Rainy days: a slicker-yellow coat and hood, and a gentle drizzle of short slanted streaks.
-const COLLARS = { blue: ['#8fb4cf', '#6f91ab'], red: ['#c4443a', '#a3392f'] }; // [day, night]
 const COAT = { light: { coat: '#e8b830', fold: '#b8891f' }, dark: { coat: '#b8923c', fold: '#8f6d2a' } };
 const RAIN = { light: 'rgba(120,146,176,.6)', dark: 'rgba(74,90,112,.75)', splash: { light: 'rgba(120,146,176,.45)', dark: 'rgba(74,90,112,.6)' } };
 const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=37.4419&longitude=-122.1430&current=weather_code,precipitation&daily=temperature_2m_max&timezone=America%2FLos_Angeles&forecast_days=1';
@@ -918,9 +917,6 @@ export function startDogs(canvas) {
       const filled = new Set(out.map(p => p[0] + ',' + p[1]));
       for (const p of out) if (p[3] === 'B' && p.length > 4 && !filled.has(p[0] + ',' + (p[1] - 1))) p[2] = colors.L;
     }
-    // Everyday collars: Kodie's a soft light blue, the two black dogs' red.
-    const collar = COLLARS[dog.coat === 'blonde' ? 'blue' : 'red'][pal.rim ? 1 : 0];
-    wearAtNeck(out, pose, frame, [[0, 0, collar], [0, -1, collar]]);
     if (raining && !night) wearCoat(out, { ...COAT[pal.rim ? 'dark' : 'light'], under: dog.coat === 'blonde' ? null : colors.L }, pose !== 'sleep' && pose !== 'stir', pose === 'sit' ? -3 : -1); // No hood on the pillow; a sitting dog's haunch shows.
     for (const x of extras) x.dress?.(out, dog, pose, frame, !!pal.rim);
     return out;
