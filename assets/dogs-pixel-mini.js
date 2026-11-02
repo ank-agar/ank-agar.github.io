@@ -176,6 +176,28 @@ const HAND_MID = 7; // Half-pixel column that sits over the middle of the head.
 const HAND_FADE = [.45, .8]; // The wrist fades out upward, as if the arm continues off screen.
 const HAND_COLORS = { h: '#e8bfa3', k: '#c4927a' }; // Light skin, a touch pinker than the cream coat so they separate.
 // Eating: standing at a bowl with the head down in it; the second frame lifts the head a pixel.
+// Gnawing a bone on the ground: the lying loaf with the head lowered a pixel onto the bone's near end.
+// The second frame tugs the nose down a pixel, like a jaw working the bone.
+POSES.gnaw = {
+  anchor: 5, tail: [0, 6], tails: ['tuck', 'tuckB'], head: [7, 5], neck: [6, 6],
+  frames: [[
+    '.............',
+    '........BB...',
+    '.......BBBB..',
+    '.BBB...BBBEB.',
+    'BBBBBBBBDBMMN',
+    'BBBBBBBBDBBBC',
+    'BBBBBBBBBFBB.',
+  ], [
+    '.............',
+    '........BB...',
+    '.......BBBB..',
+    '.BBB...BBBEB.',
+    'BBBBBBBBDBMMB',
+    'BBBBBBBBDBBCN',
+    'BBBBBBBBBFBB.',
+  ]],
+};
 POSES.eat = {
   anchor: 4, tail: [0, 4], tails: ['up', 'out', 'high'], head: [8, 8], neck: [5, 5],
   frames: [[
@@ -208,6 +230,7 @@ const BOWL_COLORS = {
 // Beds are 17 sprite pixels wide, centered on the sleeping dog's foot point.
 const BED_HALF = 8, BED_GAP = 2;
 // Rainy days: a slicker-yellow coat and hood, and a gentle drizzle of short slanted streaks.
+const COLLARS = { blue: ['#8fb4cf', '#6f91ab'], red: ['#c4443a', '#a3392f'] }; // [day, night]
 const COAT = { light: { coat: '#e8b830', fold: '#b8891f' }, dark: { coat: '#b8923c', fold: '#8f6d2a' } };
 const RAIN = { light: 'rgba(120,146,176,.6)', dark: 'rgba(74,90,112,.75)', splash: { light: 'rgba(120,146,176,.45)', dark: 'rgba(74,90,112,.6)' } };
 const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=37.4419&longitude=-122.1430&current=weather_code,precipitation&daily=temperature_2m_max&timezone=America%2FLos_Angeles&forecast_days=1';
@@ -841,6 +864,7 @@ export function startDogs(canvas) {
     const a = dog.act, moving = dog.path.length && !(a.delay > 0);
     if (a.type === 'sleep') return dog.pat || dog.stir > 0 ? ['stir', 0] : ['sleep', Math.sin(clock * 2.1 + dog.seed) > 0 ? 1 : 0];
     if (a.type === 'pat') return [a.pose || 'stand', 0];
+    if (a.still === 'gnaw' && !moving) return ['gnaw', Math.sin(clock * 7 + dog.seed) > .3 && Math.sin(clock * .8 + dog.seed * 3) > -.75 ? 1 : 0];
     if (a.still && !moving) return [a.still, 0]; // A feature holding a pose (tug-of-war bow, watching a butterfly).
     if (a.type === 'tobed' && !moving) return ['lie', 0];
     if (a.type === 'bird' && moving && (a.speedScale ?? 1) < 1) return ['sniff', Math.floor(dog.gait) % 2]; // Stalking: head low, creeping.
@@ -894,6 +918,9 @@ export function startDogs(canvas) {
       const filled = new Set(out.map(p => p[0] + ',' + p[1]));
       for (const p of out) if (p[3] === 'B' && p.length > 4 && !filled.has(p[0] + ',' + (p[1] - 1))) p[2] = colors.L;
     }
+    // Everyday collars: Kodie's a soft light blue, the two black dogs' red.
+    const collar = COLLARS[dog.coat === 'blonde' ? 'blue' : 'red'][pal.rim ? 1 : 0];
+    wearAtNeck(out, pose, frame, [[0, 0, collar], [0, -1, collar]]);
     if (raining && !night) wearCoat(out, { ...COAT[pal.rim ? 'dark' : 'light'], under: dog.coat === 'blonde' ? null : colors.L }, pose !== 'sleep' && pose !== 'stir', pose === 'sit' ? -3 : -1); // No hood on the pillow; a sitting dog's haunch shows.
     for (const x of extras) x.dress?.(out, dog, pose, frame, !!pal.rim);
     return out;
@@ -1667,12 +1694,12 @@ export function startDogs(canvas) {
   // ==== Feature: big bones ===================================================================
   // Once a day, at a time between 12pm and 6pm in Palo Alto picked from the date (or soon, with
   // ?event=bones), three big chew bones, each about half a dog long,
-  // turn up on open ground. Every dog trots to one, lies down and gnaws on it for a good while,
-  // the bone bobbing with each chomp. A dog called away (a tap, a pat, a meal, bedtime) drops its bone,
-  // and dropped bones fade out on the ground.
+  // turn up on open ground. Every dog trots to one, lies down behind it and gnaws its near end for a
+  // good while: the bone stays put on the ground and the head works it. A dog called away (a tap, a
+  // pat, a meal, bedtime) leaves its bone, and left bones fade out.
   {
     const forced = eventParam === 'bones';
-    const BONE = { shaft: '#f1e8d4', knob: '#cdbb94' };
+    const BONE = '#e8dcc2'; // One flat bone color; a darker lower edge read as little legs.
     const LEN = 7; // Dog pixels: a lying puppy is 13 wide, so about half its body.
     let bones = [], wait = forced ? 2 : Infinity, check = 0;
     const laNow = () => {
@@ -1688,12 +1715,8 @@ export function startDogs(canvas) {
       let seen = null; try { seen = localStorage.getItem('ank-bones-day'); } catch {}
       return min >= t && min < t + 30 && seen !== day;
     };
-    const mouth = r => {
-      const head = r.list.filter(q => q[4]);
-      if (!head.length) return null;
-      const front = Math.max(...head.map(q => q[0]));
-      return { x: front, y: Math.max(...head.filter(q => q[0] >= front - 1).map(q => q[1])) };
-    };
+    const NEAR = 8; // In the gnaw pose the nose is 7 pixels ahead of the dog's anchor; the bone starts just past it.
+    const SPOT = (NEAR + 3) * P; // From the dog's anchor to the bone's middle.
     function begin() {
       if (!dogs.every(idleDog)) { wait = 12; return; }
       const spots = [];
@@ -1710,12 +1733,12 @@ export function startDogs(canvas) {
         const b = { dog: d, x: spots[i].x, y: spots[i].y, state: 'ground', life: 6, face: spots[i].x >= d.x ? 1 : -1 };
         setAct(d, 'bone'); d.act.hold = 99; rollPant(d);
         b.act = d.act;
-        // Stop just behind the bone so it ends up between the forepaws.
-        const at = { x: b.x - b.face * 6 * P, y: b.y };
+        // Lie down right behind the bone, nose at its near end.
+        const at = { x: b.x - b.face * SPOT, y: b.y };
         if (!goTo(d, valid(at.x, at.y) ? at : b, 'trot')) { d.act.hold = .5; b.state = 'rest'; return b; }
         d.act.onArrive = dd => {
           if (b.state !== 'ground') return;
-          dd.face = b.face; dd.act.still = 'lie'; dd.pant = false; dd.tongue = 0;
+          dd.face = b.face; dd.act.still = 'gnaw'; dd.pant = false; dd.tongue = 0;
           b.state = 'chew'; b.left = rand(25, 40);
         };
         return b;
@@ -1725,7 +1748,7 @@ export function startDogs(canvas) {
     }
     // The bone stays on the ground where the dog lay, then fades.
     function drop(b) {
-      if (b.state === 'chew') { b.x = b.dog.x + b.face * 6 * P; b.y = b.dog.y; }
+      if (b.state === 'chew') { b.x = b.dog.x + b.face * SPOT; b.y = b.dog.y; }
       b.state = 'rest'; b.life = 6;
       if (b.dog.act === b.act) { b.dog.act.still = null; b.dog.act.hold = rand(.5, 1.5); }
     }
@@ -1746,24 +1769,25 @@ export function startDogs(canvas) {
       },
       items(items) {
         const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * PD, y * PD, PD, PD); };
-        // A chunky side-view bone: a two-pixel shaft with a two-wide knob above and below each end.
-        const bone = (x0, y, dir) => {
-          for (let k = 0; k < LEN; k++) { px(x0 + k * dir, y, BONE.shaft); px(x0 + k * dir, y + 1, BONE.shaft); }
-          for (const k of [0, 1, LEN - 2, LEN - 1]) { px(x0 + k * dir, y - 1, BONE.knob); px(x0 + k * dir, y + 2, BONE.knob); }
+        // A cartoon bone lying on the ground, three pixels tall: a two-wide knob at each end and a
+        // one-pixel shaft between. x0 is the end nearest the dog, gy the ground row.
+        const bone = (x0, gy, dir) => {
+          for (let k = 0; k < LEN; k++) {
+            const knob = k < 2 || k >= LEN - 2, x = x0 + k * dir;
+            px(x, gy - 1, BONE);
+            if (knob) { px(x, gy - 2, BONE); px(x, gy, BONE); }
+          }
         };
         for (const b of bones) {
           if (b.state === 'chew') {
-            const r = b.dog.render, m = r && mouth(r);
-            if (!m) continue;
-            // Held in the jaws: the near knob at the back of the mouth, the rest sticking out ahead,
-            // bobbing a pixel on each chomp.
-            const bob = Math.sin(clock * 9 + b.dog.seed) > .3 ? 1 : 0;
-            items.push({ y: b.dog.y + .3, draw: () => bone(r.gx + (m.x - 2) * r.face, r.gy + m.y - 1 + bob, r.face) });
+            const r = b.dog.render;
+            if (!r) continue;
+            items.push({ y: b.dog.y + .1, draw: () => bone(r.gx + NEAR * r.face, r.gy - 1, r.face) }); // Sprites' bottom row sits at gy - 1.
           } else {
             const gx = Math.round(b.x * dpr / PD), gy = Math.round(b.y * dpr / PD);
             items.push({ y: b.y - .2, draw: () => {
               ctx.globalAlpha = b.state === 'rest' ? clamp(b.life / 1.5, 0, 1) : 1;
-              bone(gx - Math.floor(LEN / 2), gy - 2, 1);
+              bone(gx - b.face * Math.floor(LEN / 2), gy - 1, b.face);
               ctx.globalAlpha = 1;
             } });
           }
@@ -1986,25 +2010,46 @@ export function startDogs(canvas) {
     }
     const onJar = (x, y) => jar && shown && !night && !reduced.matches && x > jar.x - 5 * P && x < jar.x + 5 * P && y > jar.y - 8 * P && y < jar.y + 2 * P;
     // The begging row: one sitting spot per dog, side by side a little below the treat.
-    function formLine(at) {
+    function formLine(at, follow = false) {
       const diners = dogs.filter(d => d.act.type === 'beg' || idleDog(d) || d.act.type === 'eat' || d.act.type === 'sniffbowl')
         .filter(d => !['sleep', 'tobed', 'wake'].includes(d.act.type));
       if (!diners.length) return;
-      const gap = 20 * P, y = clamp(at.y + 22 * P, minY() + 10 * P, maxY() - 4);
+      const gap = 20 * P;
+      // A row already waiting stays exactly where it is (unless the treat was carried far off, when
+      // the whole row follows): only dogs joining it walk, to the nearest free spot at either end.
+      if (line && !follow) {
+        const waiting = diners.filter(d => d.act.type === 'beg');
+        for (const d of waiting) { d.act.hold = WAIT; d.act.watch = held || at; }
+        const taken = waiting.map(d => d.act.slot ?? Math.round((d.x - line.x) / gap));
+        for (const d of diners.filter(o => o.act.type !== 'beg').sort((a, b) => a.x - b.x)) {
+          const ends = taken.length ? [Math.min(...taken) - 1, Math.max(...taken) + 1] : [0];
+          const slot = ends.sort((a, b) => Math.abs(line.x + a * gap - d.x) - Math.abs(line.x + b * gap - d.x))[0];
+          taken.push(slot);
+          join(d, nearestValid(line.x + slot * gap, line.y), slot, at);
+        }
+        return;
+      }
+      const y = clamp(at.y + 22 * P, minY() + 10 * P, maxY() - 4);
       const cx = clamp(at.x, minX() + gap, maxX() - gap);
       line = { x: cx, y, t: 0 };
       diners.sort((a, b) => a.x - b.x).forEach((d, i) => {
-        const want = nearestValid(cx + (i - (diners.length - 1) / 2) * gap, y);
-        setAct(d, 'beg'); d.act.hold = 99; d.act.watch = held || at;
-        if (Math.hypot(want.x - d.x, want.y - d.y) > 6 && goTo(d, want, 'trot')) rollPant(d);
-        d.act.onArrive = dd => { dd.act.still = 'beg'; };
-        if (!d.path.length) d.act.still = 'beg';
+        const slot = i - (diners.length - 1) / 2;
+        join(d, nearestValid(cx + slot * gap, y), slot, at);
       });
     }
+    // Waiting dogs stay put for up to three minutes after the last treat moment, then give up.
+    const WAIT = 180;
+    function join(d, want, slot, at) {
+      setAct(d, 'beg'); d.act.hold = WAIT; d.act.watch = held || at; d.act.slot = slot;
+      if (Math.hypot(want.x - d.x, want.y - d.y) > 6 && goTo(d, want, 'trot')) rollPant(d);
+      d.act.onArrive = dd => { dd.act.still = 'beg'; };
+      if (!d.path.length) d.act.still = 'beg';
+    }
     // Treat in mouth, the dog lies down where it is to eat it; Oshie first runs off to a far corner.
+    // The ones still waiting get their patience topped up.
     function chew(d) {
       setAct(d, 'chew'); d.act.hold = 99; d.act.dur = rand(5, 6.5); d.act.left = d.act.dur; d.act.crumb = .4; d.stir = 1;
-      for (const o of dogs) if (o !== d && o.act.type === 'beg' && !held) o.act.watch = d; // The others watch the lucky one.
+      for (const o of dogs) if (o !== d && o.act.type === 'beg') { o.act.hold = WAIT; if (!held) o.act.watch = d; } // The others watch the lucky one.
       d.mood.hunger = Math.max(0, d.mood.hunger - .15);
       const settle = dd => { dd.act.still = 'lie'; dd.act.munch = true; };
       if (d.coat === 'blackB') {
@@ -2013,15 +2058,15 @@ export function startDogs(canvas) {
       }
       settle(d);
     }
-    // Open ground well away from the other dogs, not too long a run.
+    // Open ground far from the other dogs: Oshie likes to eat his treat alone, well away from the rest.
     function farSpot(d) {
       let best = null;
       for (let i = 0; i < 80; i++) {
         const x = rand(minX(), maxX()), y = rand(minY(), maxY());
         if (!valid(x, y) || inZone(x, y)) continue;
         const far = Math.min(...dogs.filter(o => o !== d).map(o => Math.hypot(o.x - x, (o.y - y) * 2)));
-        const trip = Math.hypot(x - d.x, y - d.y), score = Math.min(far, 300) - trip * .2;
-        if (trip > Math.min(100, width * .2) && far > Math.min(120, width * .25) && (!best || score > best.score)) best = { x, y, score };
+        const trip = Math.hypot(x - d.x, y - d.y), score = Math.min(far, 600) - trip * .05;
+        if (trip > Math.min(240, width * .35) && far > Math.min(240, width * .35) && (!best || score > best.score)) best = { x, y, score };
       }
       return best;
     }
@@ -2046,7 +2091,8 @@ export function startDogs(canvas) {
     }
     function grab(f) {
       // Nearest dog trots over to the treat on the ground and eats it.
-      const d = dogs.filter(o => o.act.type === 'beg' || idleDog(o)).sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
+      const pool = dogs.some(o => o.act.type === 'beg') ? dogs.filter(o => o.act.type === 'beg') : dogs.filter(idleDog);
+      const d = pool.sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
       if (!d) { f.rest = 4; return; }
       const side = d.x < f.x ? -1 : 1;
       setAct(d, 'treatgrab'); d.act.hold = 99; f.taker = d;
@@ -2089,7 +2135,7 @@ export function startDogs(canvas) {
         if (night) { if (held) held = null; falling = []; crumbs = []; line = null; return; }
         if (line) line.t += dt;
         // Let the row follow if the treat is carried somewhere else.
-        if (held && line && line.t > .8 && (Math.abs(held.x - line.x) > 140 || Math.abs(held.y + 22 * P - line.y) > 110)) formLine(held);
+        if (held && line && line.t > .8 && (Math.abs(held.x - line.x) > 140 || Math.abs(held.y + 22 * P - line.y) > 110)) formLine(held, true);
         // Waiting dogs keep their eyes on the treat and wag hard.
         for (const d of dogs) {
           if (d.act.type === 'beg') { if (held) d.act.watch = held; if (!d.path.length) d.stir = Math.max(d.stir, .3); }
