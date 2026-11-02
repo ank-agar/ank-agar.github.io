@@ -1,16 +1,11 @@
-import { render, CHORDS } from './guitar.js?v=e80fb7049b';
 const root = document.documentElement;
 const themeButton = document.querySelector('#theme-toggle');
-const soundButton = document.querySelector('#sound-toggle');
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // Keep persistent shell URLs stable after history.pushState changes the path.
 document.querySelectorAll('header a[href], head link[href]').forEach(element => {
   element.href = new URL(element.getAttribute('href'), location.href).href;
 });
 const safeGet = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const safeSet = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
-let soundEnabled = safeGet('ank-sound') === 'on';
-let context;
 
 function syncPreferences() {
   const dark = root.dataset.theme === 'dark';
@@ -18,8 +13,6 @@ function syncPreferences() {
   themeButton.setAttribute('aria-label', `Switch to ${dark ? 'light' : 'dark'} theme`);
   themeButton.querySelector('span').textContent = dark ? 'Light' : 'Dark';
   document.querySelector('meta[name="theme-color"]').content = dark ? '#1a1917' : '#ffffff';
-  soundButton.setAttribute('aria-pressed', String(soundEnabled));
-  soundButton.querySelector('span').textContent = soundEnabled ? 'Sound on' : 'Sound off';
 }
 syncPreferences();
 themeButton.addEventListener('click', () => {
@@ -38,48 +31,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme
 setInterval(applyTheme, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) applyTheme(); });
 
-// Guitar synthesis lives in guitar.js; rendered buffers are cached per note.
-// A link's data-note names the chord it strums (see CHORDS in guitar.js).
-const buffers = new Map();
-function buffer(name) {
-  const key = CHORDS[name] ? name : 'g';
-  if (!buffers.has(key)) {
-    const data = render(CHORDS[key], context.sampleRate);
-    const audio = context.createBuffer(1, data.length, context.sampleRate);
-    audio.copyToChannel(data, 0);
-    buffers.set(key, audio);
-  }
-  return buffers.get(key);
-}
-async function play(note = 'g') {
-  if (!soundEnabled) return;
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) throw new Error('Audio is unavailable');
-    context ??= new AudioContext();
-    if (context.state === 'suspended') await context.resume();
-    const source = context.createBufferSource();
-    source.buffer = buffer(note);
-    const gain = context.createGain();
-    gain.gain.value = .42;
-    source.connect(gain).connect(context.destination);
-    source.start(context.currentTime + .01);
-  } catch {
-    soundEnabled = false;
-    safeSet('ank-sound', 'off');
-    syncPreferences();
-    soundButton.title = 'Audio unavailable in this browser';
-  }
-}
-soundButton.addEventListener('click', () => {
-  soundEnabled = !soundEnabled;
-  safeSet('ank-sound', soundEnabled ? 'on' : 'off');
-  syncPreferences();
-  if (soundEnabled) void play();
-});
-
 // Each alternate home names its dog animation; modules load only on the page that uses them.
-const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=e80fb7049b' };
+const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=0667aa4db2' };
 let stopDogs, dogRun = 0;
 function setupPage() {
   stopDogs?.();
@@ -100,7 +53,7 @@ function setupPage() {
 setupPage();
 
 // Real static pages remain usable without JS. Navigation swaps just the main
-// content when JS is available so a plucked note can finish across page changes.
+// content when JS is available.
 const scriptUrl = new URL(import.meta.url);
 const siteBase = new URL('../', scriptUrl);
 const routeKey = url => {
@@ -108,7 +61,7 @@ const routeKey = url => {
   const relative = pathname.startsWith(siteBase.pathname) ? pathname.slice(siteBase.pathname.length) : pathname;
   return relative.replace(/index\.html$/, '').replace(/\/$/, '') || 'home';
 };
-const routes = new Set(['home', 'research', 'about']);
+const routes = new Set(['home', 'research', 'about', 'projects']);
 let navigation;
 async function navigate(url, push = true) {
   navigation?.abort();
@@ -129,7 +82,7 @@ async function navigate(url, push = true) {
     }
     document.body.dataset.page = next.body.dataset.page;
     const active = routeKey(url);
-    document.querySelectorAll('header a[data-note]').forEach(link => {
+    document.querySelectorAll('header nav a').forEach(link => {
       if (routeKey(link.href) === active) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     });
@@ -149,14 +102,6 @@ document.addEventListener('click', event => {
   const url = new URL(link.href);
   if (url.origin !== location.origin || url.hash || url.search || location.search || !url.pathname.startsWith(siteBase.pathname) || !routes.has(routeKey(url))) return;
   event.preventDefault();
-  if (link.hasAttribute('data-note')) {
-    void play(link.dataset.note);
-    if (!reducedMotion.matches && soundEnabled) {
-      link.classList.remove('note-playing');
-      requestAnimationFrame(() => link.classList.add('note-playing'));
-      link.addEventListener('animationend', () => link.classList.remove('note-playing'), { once: true });
-    }
-  }
   if (url.href !== location.href) void navigate(url.href);
 });
 window.addEventListener('popstate', () => void navigate(location.href, false));
