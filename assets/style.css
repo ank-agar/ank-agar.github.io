@@ -244,14 +244,19 @@ html[data-theme=dark] .reading-prose .headshot{box-shadow:0 4px 14px rgba(0,0,0,
 ::selection{background:#b4d5fe;color:inherit}
 :root[data-theme=dark] ::selection{background:#2f5a8f;color:#fff}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) ::selection{background:#2f5a8f;color:#fff}}
-/* Home links: capitalized words with space between, no slashes. */
-.social-links{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:1.1em;row-gap:.2em}
-.social-links .email-reveal{margin-left:-.6em}
+/* Home links: slashes between them; on phones, one link per line and no slashes. */
+.social-links .slash{margin:0 7px;color:var(--muted)}
+@media(max-width:540px){.social-links{display:flex;flex-direction:column;align-items:flex-start;row-gap:2px}.social-links .slash{display:none}}
+/* Guitars: every photo is pre-cropped to the same frame around its body. */
+.guitar img{aspect-ratio:47/40;object-fit:cover;background:none;border-radius:4px;box-shadow:0 3px 10px rgba(0,0,0,.14)}
 /* Papers: the Scholar note sits on the heading line, quieter. */
 .papers-head h2 .scholar-line{display:inline;font-weight:400;color:var(--muted);margin:0;font-size:.85em;letter-spacing:0;text-transform:none}
 /* Four nav items don't fit beside the name on phones: name on top, nav underneath. */
 @media(max-width:540px){.site-header{flex-direction:column;align-items:flex-start;gap:2px}.wordmark{white-space:nowrap}.site-header nav{margin-left:0;justify-content:flex-start;flex-wrap:nowrap;gap:0 20px}}
 .scholar-line a{white-space:nowrap}
+.social-links .email-item{margin:0;font-size:inherit;color:inherit}
+/* The archive line sits under the guitars in the text column, not the heading column. */
+.about-section>.archive-line{grid-column:2;margin:10px 0 0}
 :root{--px-p:#857865;--px-c:#8f826d;--px-b:#6f6352;--px-G:#5c6773;--px-L:#55a050;--px-r:#b9b1a3;--px-P:#a0603c;--px-Q:#c08a62;--px-o:#b5866a;--px-n:#5f7f4f;--px-S:#55524c;--px-O:#9c8b7a;--px-W:#fbf3e4;--px-K:#e58fa8;--px-B:#7fb0d9;--px-Y:#f0c94a;--px-sigma-a:#3d3a35;--px-dna-a:#3b78e7;--px-dna-b:#e8508f;--px-dna-c:#f2c14e;--px-film-a:#3f8f45;--px-film-b:#222222;--px-film-c:#8e5bb5;--px-film-d:#cfd8dc;--px-film-e:#ffffff;--px-cellgen-a:#3b78e7;--px-cellgen-b:#3f8f45;--px-cellgen-c:#e8508f;--px-cellgen-d:#a5d6a7;--px-cellgen-e:#8e5bb5;--px-cellgen-f:#f08a3c;--px-cellgen-g:#f2c14e;--px-omics-a:#43a047;--px-omics-b:#1e88e5;--px-omics-c:#ffb300;--px-omics-d:#e53935;--px-omics-e:#90a4ae;--px-helix-a:#3949ab;--px-helix-b:#9fa8da;--px-heatmap-a:#b2182b;--px-heatmap-b:#9e9e9e;--px-heatmap-c:#2166ac;--px-heatmap-d:#92c5de;--px-heatmap-e:#e8e1ef;--px-heatmap-f:#cba5a7}
 :root[data-theme=dark]{--px-p:#d6cab5;--px-c:#e0d5c2;--px-b:#b0a28c;--px-G:#b4bdc7;--px-L:#7cc477;--px-r:#7d766b;--px-P:#d99a6f;--px-Q:#9c6a48;--px-o:#c99f82;--px-n:#8fb07a;--px-S:#d6d0c4;--px-O:#d9c6ad;--px-W:#fbf3e4;--px-K:#e58fa8;--px-B:#7fb0d9;--px-Y:#f0c94a;--px-sigma-a:#a3a2a0;--px-dna-a:#a2b9e3;--px-dna-b:#e4aac2;--px-dna-c:#f2c14e;--px-film-a:#a3c2a6;--px-film-b:#9aa0a6;--px-film-c:#c1aed0;--px-film-d:#4b555c;--px-film-e:#1a1917;--px-cellgen-a:#a2b9e3;--px-cellgen-b:#a3c2a6;--px-cellgen-c:#e4aac2;--px-cellgen-d:#a5d6a7;--px-cellgen-e:#c1aed0;--px-cellgen-f:#f08a3c;--px-cellgen-g:#f2c14e;--px-omics-a:#a5c8a6;--px-omics-b:#97bfe3;--px-omics-c:#ffb300;--px-omics-d:#e3a1a0;--px-omics-e:#90a4ae;--px-helix-a:#a1a7cc;--px-helix-b:#9fa8da;--px-heatmap-a:#cf959c;--px-heatmap-b:#9e9e9e;--px-heatmap-c:#98b2cd;--px-heatmap-d:#92c5de;--px-heatmap-e:#e8e1ef;--px-heatmap-f:#cba5a7}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--px-p:#d6cab5;--px-c:#e0d5c2;--px-b:#b0a28c;--px-G:#b4bdc7;--px-L:#7cc477;--px-r:#7d766b;--px-P:#d99a6f;--px-Q:#9c6a48;--px-o:#c99f82;--px-n:#8fb07a;--px-S:#d6d0c4;--px-O:#d9c6ad;--px-W:#fbf3e4;--px-K:#e58fa8;--px-B:#7fb0d9;--px-Y:#f0c94a;--px-sigma-a:#a3a2a0;--px-dna-a:#a2b9e3;--px-dna-b:#e4aac2;--px-dna-c:#f2c14e;--px-film-a:#a3c2a6;--px-film-b:#9aa0a6;--px-film-c:#c1aed0;--px-film-d:#4b555c;--px-film-e:#1a1917;--px-cellgen-a:#a2b9e3;--px-cellgen-b:#a3c2a6;--px-cellgen-c:#e4aac2;--px-cellgen-d:#a5d6a7;--px-cellgen-e:#c1aed0;--px-cellgen-f:#f08a3c;--px-cellgen-g:#f2c14e;--px-omics-a:#a5c8a6;--px-omics-b:#97bfe3;--px-omics-c:#ffb300;--px-omics-d:#e3a1a0;--px-omics-e:#90a4ae;--px-helix-a:#a1a7cc;--px-helix-b:#9fa8da;--px-heatmap-a:#cf959c;--px-heatmap-b:#9e9e9e;--px-heatmap-c:#98b2cd;--px-heatmap-d:#92c5de;--px-heatmap-e:#e8e1ef;--px-heatmap-f:#cba5a7}}
