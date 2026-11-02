@@ -7,7 +7,8 @@
 // to pat it. They get hungry now and then and eat from three steel bowls, often together. In dark
 // mode it is night: the dogs curl up asleep on three beds above the bio. On rainy days in Palo Alto
 // (or with ?weather=rain) they wear yellow raincoats with the hoods up, under a light drizzle.
-// Now and then one gets the zoomies or two play tug-of-war, and in spring butterflies drift by.
+// Now and then one gets the zoomies, two play tug-of-war, or all three gnaw on big bones, and in
+// spring butterflies drift by.
 
 // Sprite maps face right. The bottom row stands on the ground.
 // B body, L lighter shade, D ears, F far legs, E eye, N nose,
@@ -209,24 +210,23 @@ const BED_HALF = 8, BED_GAP = 2;
 // Rainy days: a slicker-yellow coat and hood, and a gentle drizzle of short slanted streaks.
 const COAT = { light: { coat: '#e8b830', fold: '#b8891f' }, dark: { coat: '#b8923c', fold: '#8f6d2a' } };
 const RAIN = { light: 'rgba(120,146,176,.6)', dark: 'rgba(74,90,112,.75)', splash: { light: 'rgba(120,146,176,.45)', dark: 'rgba(74,90,112,.6)' } };
-const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=37.4419&longitude=-122.1430&daily=precipitation_sum,precipitation_probability_max,weather_code,temperature_2m_max&timezone=America%2FLos_Angeles&forecast_days=1';
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=37.4419&longitude=-122.1430&current=weather_code,precipitation&daily=temperature_2m_max&timezone=America%2FLos_Angeles&forecast_days=1';
 
-// Is it a rainy day in Palo Alto today (by the Los Angeles calendar)? Cached per day; any failure means no.
-// Today's Palo Alto weather by the Los Angeles calendar: { rain, fog, hot }. Cached per day; any
+// Palo Alto weather right now: { rain, fog, hot }. Rain and fog follow current conditions (a drizzly
+// morning shouldn't keep the raincoats on all day); hot uses today's high. Cached for 30 minutes; any
 // failure means a plain day. ?weather=rain|fog|hot|clear forces one.
 async function weatherToday() {
   const forced = new URLSearchParams(location.search).get('weather');
   if (['rain', 'fog', 'hot', 'clear'].includes(forced)) return { rain: forced === 'rain', fog: forced === 'fog', hot: forced === 'hot' };
-  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
-  try { const c = JSON.parse(localStorage.getItem('ank-weather-day') || 'null'); if (c && c.day === day) return c.w; } catch {}
+  try { const c = JSON.parse(localStorage.getItem('ank-weather-now') || 'null'); if (c && Date.now() - c.at < 30 * 60e3) return c.w; } catch {}
   try {
     const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 4000);
     const res = await fetch(WEATHER_URL, { signal: ctrl.signal });
     clearTimeout(timer);
-    const d = (await res.json()).daily, mm = d.precipitation_sum?.[0] ?? 0, code = d.weather_code?.[0] ?? 0, tmax = d.temperature_2m_max?.[0] ?? 0;
-    const rain = mm >= .5 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99);
+    const data = await res.json(), code = data.current?.weather_code ?? 0, mm = data.current?.precipitation ?? 0, tmax = data.daily?.temperature_2m_max?.[0] ?? 0;
+    const rain = mm > 0 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99);
     const w = { rain, fog: !rain && (code === 45 || code === 48), hot: !rain && tmax >= 27 };
-    try { localStorage.setItem('ank-weather-day', JSON.stringify({ day, w })); } catch {}
+    try { localStorage.setItem('ank-weather-now', JSON.stringify({ at: Date.now(), w })); localStorage.removeItem('ank-weather-day'); } catch {}
     return w;
   } catch { return { rain: false, fog: false, hot: false }; }
 }
@@ -555,7 +555,7 @@ export function startDogs(canvas) {
     if (dog.act.type === 'eat') bowlVis = Math.max(bowlVis, .25); // The bowls appear as the trip starts.
     if (dog.act.type !== 'eat') return;
     for (const o of dogs) {
-      if (o === dog || o.followEat > 0 || ['eat', 'pat', 'come', 'chase', 'bowback', 'zoomies', 'tug', 'beg', 'chew', 'treatgrab'].includes(o.act.type)) continue;
+      if (o === dog || o.followEat > 0 || ['eat', 'pat', 'come', 'chase', 'bowback', 'zoomies', 'tug', 'beg', 'chew', 'treatgrab', 'bone'].includes(o.act.type)) continue;
       if (Math.random() < .3 + .45 * o.mood.hunger + .2 * o.mood.social) o.followEat = rand(.8, 4.5);
     }
   }
@@ -740,7 +740,7 @@ export function startDogs(canvas) {
 
   function step(dog, dt) {
     driftMood(dog, dt);
-    if (dog.followEat > 0 && (dog.followEat -= dt) <= 0 && !night && !['eat', 'pat', 'come', 'chase', 'bowback', 'sleep', 'tobed', 'fetch', 'bird', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab'].includes(dog.act.type)) {
+    if (dog.followEat > 0 && (dog.followEat -= dt) <= 0 && !night && !['eat', 'pat', 'come', 'chase', 'bowback', 'sleep', 'tobed', 'fetch', 'bird', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab', 'bone'].includes(dog.act.type)) {
       setAct(dog, 'eat');
       if (dog.act.type === 'eat') bowlVis = Math.max(bowlVis, .25);
       if (dog.act.type === 'eat') dog.mood.hunger = Math.max(dog.mood.hunger, .5);
@@ -1102,7 +1102,7 @@ export function startDogs(canvas) {
     const slots = [[-1, -1], [0, 1], [1, 0]].sort(() => Math.random() - .5);
     order.forEach((dog, i) => {
       // A dog waiting in line for a treat, or busy with one, stays put.
-      if (['beg', 'chew', 'treatgrab'].includes(dog.act.type)) return;
+      if (['beg', 'chew', 'treatgrab', 'bone'].includes(dog.act.type)) return;
       // A dog with its head in the bowl may not even look up.
       if (dog.act.type === 'eat' && dog.bowl && !dog.path.length && Math.random() < .2 + .6 * dog.mood.hunger) return;
       const [sx, sy] = slots[i];
@@ -1408,7 +1408,7 @@ export function startDogs(canvas) {
       const from = { x: clamp(spot.x - dir * rand(70, 120), 10, width - 10), y: spot.y };
       // Arc in, then two shrinking bounces.
       ball = { x: from.x, y: spot.y, z: 0, from, to: spot, t: 0, hops: [[.7, 60], [.3, 14], [.18, 5]], hop: 0, rest: false, carried: null, life: 12 };
-      const free = dogs.filter(d => d.coat !== 'blonde' && !['sleep', 'tobed', 'pat', 'beg', 'chew', 'treatgrab', 'tug'].includes(d.act.type));
+      const free = dogs.filter(d => d.coat !== 'blonde' && !['sleep', 'tobed', 'pat', 'beg', 'chew', 'treatgrab', 'bone', 'tug'].includes(d.act.type));
       if (!free.length) return;
       const score = d => d.mood.energy * 1.2 + d.mood.social * .3 + Math.random() * .4 - Math.hypot(d.x - spot.x, d.y - spot.y) / 1500 - (d.act.type === 'eat' ? .6 : 0);
       const keen = free.sort((a, b) => score(b) - score(a))[0];
@@ -1470,7 +1470,7 @@ export function startDogs(canvas) {
 
   // ==== Shared helper for the play features below ===========================================
   // A dog that is free to be drawn into a game: awake, not eating, not already busy with something.
-  const idleDog = d => !['sleep', 'tobed', 'wake', 'pat', 'eat', 'sniffbowl', 'fetch', 'bird', 'come', 'mill', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab'].includes(d.act.type) && !(d.act.delay > 0) && !d.pat;
+  const idleDog = d => !['sleep', 'tobed', 'wake', 'pat', 'eat', 'sniffbowl', 'fetch', 'bird', 'come', 'mill', 'zoomies', 'tug', 'flutter', 'beg', 'chew', 'treatgrab', 'bone'].includes(d.act.type) && !(d.act.delay > 0) && !d.pat;
   const eventParam = new URLSearchParams(location.search).get('event');
 
   // ==== Feature: zoomies ======================================================================
@@ -1662,6 +1662,99 @@ export function startDogs(canvas) {
       },
     });
     canvas.tugDebug = () => game && { state: game.state, shift: game.shift, ready: game.ready, left: dogs.indexOf(game.left), right: dogs.indexOf(game.right), rope: { ...game.rope } };
+  }
+
+  // ==== Feature: big bones ===================================================================
+  // Every 6-10 minutes (or soon, with ?event=bones) three big chew bones, each about half a dog long,
+  // turn up on open ground. Every dog trots to one, lies down and gnaws on it for a good while,
+  // the bone bobbing with each chomp. A dog called away (a tap, a pat, a meal, bedtime) drops its bone,
+  // and dropped bones fade out on the ground.
+  {
+    const forced = eventParam === 'bones';
+    const BONE = { shaft: '#f1e8d4', knob: '#cdbb94' };
+    const LEN = 7; // Dog pixels: a lying puppy is 13 wide, so about half its body.
+    let bones = [], wait = forced ? 2 : rand(360, 600);
+    const mouth = r => {
+      const head = r.list.filter(q => q[4]);
+      if (!head.length) return null;
+      const front = Math.max(...head.map(q => q[0]));
+      return { x: front, y: Math.max(...head.filter(q => q[0] >= front - 1).map(q => q[1])) };
+    };
+    function begin() {
+      if (!dogs.every(idleDog)) { wait = 12; return; }
+      const spots = [];
+      for (const d of dogs) {
+        let spot = null;
+        for (let i = 0; i < 30 && !spot; i++) {
+          const s = randomSpot(d, d, 160);
+          if (s && !pixelInText(s.x, s.y - 20) && spots.every(o => Math.hypot(o.x - s.x, (o.y - s.y) * 2) > 34 * P)) spot = s;
+        }
+        if (!spot) { wait = 15; return; }
+        spots.push(spot);
+      }
+      bones = dogs.map((d, i) => {
+        const b = { dog: d, x: spots[i].x, y: spots[i].y, state: 'ground', life: 6, face: spots[i].x >= d.x ? 1 : -1 };
+        setAct(d, 'bone'); d.act.hold = 99; rollPant(d);
+        b.act = d.act;
+        // Stop just behind the bone so it ends up between the forepaws.
+        const at = { x: b.x - b.face * 6 * P, y: b.y };
+        if (!goTo(d, valid(at.x, at.y) ? at : b, 'trot')) { d.act.hold = .5; b.state = 'rest'; return b; }
+        d.act.onArrive = dd => {
+          if (b.state !== 'ground') return;
+          dd.face = b.face; dd.act.still = 'lie'; dd.pant = false; dd.tongue = 0;
+          b.state = 'chew'; b.left = rand(25, 40);
+        };
+        return b;
+      });
+      wait = forced ? rand(40, 60) : rand(360, 600);
+    }
+    // The bone stays on the ground where the dog lay, then fades.
+    function drop(b) {
+      if (b.state === 'chew') { b.x = b.dog.x + b.face * 6 * P; b.y = b.dog.y; }
+      b.state = 'rest'; b.life = 6;
+      if (b.dog.act === b.act) { b.dog.act.still = null; b.dog.act.hold = rand(.5, 1.5); }
+    }
+    extras.push({
+      update(dt) {
+        if (!bones.length) {
+          if (night || reduced.matches) return;
+          if ((wait -= dt) <= 0) begin();
+          return;
+        }
+        for (const b of bones) {
+          if (b.state === 'rest') { b.life -= dt; continue; }
+          if (b.dog.act !== b.act || night) { drop(b); continue; }
+          if (b.state === 'chew') { b.dog.face = b.face; if ((b.left -= dt) <= 0) drop(b); }
+        }
+        if (bones.every(b => b.state === 'rest' && b.life <= 0)) bones = [];
+      },
+      items(items) {
+        const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * PD, y * PD, PD, PD); };
+        // A chunky side-view bone: a two-pixel shaft with a two-wide knob above and below each end.
+        const bone = (x0, y, dir) => {
+          for (let k = 0; k < LEN; k++) { px(x0 + k * dir, y, BONE.shaft); px(x0 + k * dir, y + 1, BONE.shaft); }
+          for (const k of [0, 1, LEN - 2, LEN - 1]) { px(x0 + k * dir, y - 1, BONE.knob); px(x0 + k * dir, y + 2, BONE.knob); }
+        };
+        for (const b of bones) {
+          if (b.state === 'chew') {
+            const r = b.dog.render, m = r && mouth(r);
+            if (!m) continue;
+            // Held in the jaws: the near knob at the back of the mouth, the rest sticking out ahead,
+            // bobbing a pixel on each chomp.
+            const bob = Math.sin(clock * 9 + b.dog.seed) > .3 ? 1 : 0;
+            items.push({ y: b.dog.y + .3, draw: () => bone(r.gx + (m.x - 2) * r.face, r.gy + m.y - 1 + bob, r.face) });
+          } else {
+            const gx = Math.round(b.x * dpr / PD), gy = Math.round(b.y * dpr / PD);
+            items.push({ y: b.y - .2, draw: () => {
+              ctx.globalAlpha = b.state === 'rest' ? clamp(b.life / 1.5, 0, 1) : 1;
+              bone(gx - Math.floor(LEN / 2), gy - 2, 1);
+              ctx.globalAlpha = 1;
+            } });
+          }
+        }
+      },
+    });
+    canvas.boneDebug = () => bones.map(b => ({ state: b.state, dog: dogs.indexOf(b.dog), act: b.dog.act.type, still: b.dog.act.still }));
   }
 
   // ==== Feature: butterflies (spring, plus a rare visitor) ===================================
