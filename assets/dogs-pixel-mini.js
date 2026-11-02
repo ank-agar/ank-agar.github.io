@@ -1665,7 +1665,8 @@ export function startDogs(canvas) {
   }
 
   // ==== Feature: big bones ===================================================================
-  // Every 6-10 minutes (or soon, with ?event=bones) three big chew bones, each about half a dog long,
+  // Once a day, at a time between 12pm and 6pm in Palo Alto picked from the date (or soon, with
+  // ?event=bones), three big chew bones, each about half a dog long,
   // turn up on open ground. Every dog trots to one, lies down and gnaws on it for a good while,
   // the bone bobbing with each chomp. A dog called away (a tap, a pat, a meal, bedtime) drops its bone,
   // and dropped bones fade out on the ground.
@@ -1673,7 +1674,20 @@ export function startDogs(canvas) {
     const forced = eventParam === 'bones';
     const BONE = { shaft: '#f1e8d4', knob: '#cdbb94' };
     const LEN = 7; // Dog pixels: a lying puppy is 13 wide, so about half its body.
-    let bones = [], wait = forced ? 2 : rand(360, 600);
+    let bones = [], wait = forced ? 2 : Infinity, check = 0;
+    const laNow = () => {
+      const f = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+        .formatToParts(new Date()).map(q => [q.type, q.value]));
+      return { day: `${f.year}-${f.month}-${f.day}`, min: +f.hour * 60 + +f.minute };
+    };
+    // Today's bone time, in minutes after midnight: the same for every visitor, somewhere in 12pm-6pm.
+    const boneTime = day => { let h = 2166136261; for (const c of day) h = Math.imul(h ^ c.charCodeAt(0), 16777619); h = Math.imul(h ^ (h >>> 15), 2246822507); h ^= h >>> 13; return 12 * 60 + (h >>> 0) % 360; };
+    // Due in the half hour after today's bone time, if this browser hasn't seen them today.
+    const due = () => {
+      const { day, min } = laNow(), t = boneTime(day);
+      let seen = null; try { seen = localStorage.getItem('ank-bones-day'); } catch {}
+      return min >= t && min < t + 30 && seen !== day;
+    };
     const mouth = r => {
       const head = r.list.filter(q => q[4]);
       if (!head.length) return null;
@@ -1706,7 +1720,8 @@ export function startDogs(canvas) {
         };
         return b;
       });
-      wait = forced ? rand(40, 60) : rand(360, 600);
+      wait = forced ? rand(40, 60) : Infinity;
+      if (!forced) try { localStorage.setItem('ank-bones-day', laNow().day); } catch {}
     }
     // The bone stays on the ground where the dog lay, then fades.
     function drop(b) {
@@ -1718,6 +1733,7 @@ export function startDogs(canvas) {
       update(dt) {
         if (!bones.length) {
           if (night || reduced.matches) return;
+          if (!forced && (check -= dt) <= 0) { check = 10; wait = due() ? Math.min(wait, rand(2, 8)) : Infinity; }
           if ((wait -= dt) <= 0) begin();
           return;
         }

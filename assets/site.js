@@ -32,7 +32,7 @@ setInterval(applyTheme, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) applyTheme(); });
 
 // Each alternate home names its dog animation; modules load only on the page that uses them.
-const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=a6241dbdaa' };
+const dogModules = { side: './dogs-side.js', 'pixel-mini': './dogs-pixel-mini.js?v=8b7834e138' };
 let stopDogs, dogRun = 0;
 function setupPage() {
   stopDogs?.();
